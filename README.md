@@ -1,5 +1,7 @@
-# CNN-Deep-Feature-Extraction
-Scripts to extract deep features from multiple CNNs using pytorch. Check out the example scripts for training networks or to extracting values from layers.
+# CNN Deep-Feature Extraction
+This repository holds scripts to train and extract deep features from convolutional neural networks using pytorch. 
+
+Check out the example scripts for training networks or to extracting values from layers.
 
 Besides the examples are three other scripts that are used to manage and distribute code. They are:
 
