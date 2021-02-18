@@ -7,7 +7,7 @@ import copy
 import random
 
 
-def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_algorithm, epochs:int, plot_acc = False, plot_loss = False):
+def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_algorithm, epochs:int, plot_acc = False, plot_loss = False, datasetOnGpu = False):
     """ Trains a torchvision model using k-folds cross-validation.
 
     Args:
@@ -19,6 +19,7 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
         epochs(int): Number of training iteration for each fold.
         plot_acc(bool): Plot average epoch accuracy for training and evaluation after training is complete.
         plot_loss(bool): Plot average epoch loss for training and evaluation after training is complete.
+        datasetOnGpu(bool): If the input is already loaded on the GPU
 
     Output:
         Trained model with the weights that got the highest accuracy in the evaluation while training
@@ -107,7 +108,9 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
 
                 # Transfer inputs to GPU if available
                 if torch.cuda.is_available():
-                    input_data, input_labels = input_data.cuda(), input_labels.cuda()
+                    input_labels = input_labels.cuda()
+                    if datasetOnGpu == False:
+                        input_data = input_data.cuda()
 
                 # zero the parameter gradients
                 optmization_algorithm.zero_grad()

@@ -9,7 +9,7 @@ from torchvision import transforms
 class ImageDataset(Dataset):
     """Image dataset"""
 
-    def __init__(self, csv_file, root_dir, class_count, transform=None):
+    def __init__(self, csv_file, root_dir, class_count, transform=None, loadToGpu=False):
         """
         Args:
             csv_file (string): Path to the csv file with all images names and classes.
@@ -17,6 +17,7 @@ class ImageDataset(Dataset):
             class_count(int): Amount of classes in the dataset
             transform (callable, optional): Optional transform to be applied
                 on a sample.
+            loadToGpu (bool): If should load image data to GPU, in case of availability
 
         Notes:
             Classes are expected to be sequential numeric ints to make possible to emulate the output expected in form of an array.
@@ -26,6 +27,7 @@ class ImageDataset(Dataset):
         self.class_count = class_count
         self.root_dir = root_dir
         self.transform = transform
+        self.loadToGpu = loadToGpu
 
     def __len__(self):
         return len(self.images)
@@ -40,6 +42,10 @@ class ImageDataset(Dataset):
 
         if self.transform:
             image = self.transform(image)
+
+        # Transfer inputs to GPU if available
+        if self.loadToGpu and torch.cuda.is_available():
+            image = image.cuda()
 
         return image
 
