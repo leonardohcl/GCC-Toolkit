@@ -210,3 +210,34 @@ def mergeArffs(arff1:Arff, arff2: Arff):
             combined.entries.append(combined_entry)
     
     return combined
+
+def concatArffs(arff1:Arff, arff2: Arff):
+    """Concatenate two arff objects into one and write it to a target
+
+    Args:
+        arff1(Arff): First arff.
+        arff2(Arff): Second arff.
+
+    Returns:
+        Concatenated Arff object 
+    """
+    if len(arff1.attrs) != len(arff2.attrs):
+        raise Exception("Can't combine arffs with different number of atributes. First arff has {}, and second has {}".format(len(arff1.attrs), len(arff2.attrs)))
+
+    for idx in range(len(arff1.attrs)):
+        if(arff1.attrs[idx] != arff2.attrs[idx]):
+            raise Exception("Mismatching attribute name at column {}".format(idx))
+        if(arff1.attr_types[idx] != arff2.attr_types[idx]):
+            raise Exception("Mismatching attribute types at column {}".format(idx))
+
+    if arff1.classes != arff2.classes:
+        raise Exception("Can't combine arffs with different classes.")
+
+    concatenated = Arff()
+    concatenated.classes = arff1.classes
+    concatenated.relation = "Concatenated_{}_and_{}".format(arff1.relation,arff2.relation)
+    concatenated.attrs = arff1.attrs
+    concatenated.attr_types = arff1.attr_types
+    concatenated.entries = arff1.entries + arff2.entries
+        
+    return concatenated
