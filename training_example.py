@@ -2,6 +2,22 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import models,transforms
 import Dataset as dataset
+import CNN
+
+# 0. Define important variables
+# Input detais
+IMAGE_CSV_PATH = "sample/sample-images.csv"
+IMAGE_FOLDER_PATH = "sample"
+NUMBER_OF_CLASSES = 2
+LIST_OF_CLASSES = [0, 1]
+# Training details
+LEARNING_RATE = 0.001
+NUMBER_OF_FOLDS = 2
+EPOCHS = 10
+# Training Visualization
+PLOT_ACCURACY = True
+PLOT_LOSS = False
+
 
 # 1. Load model
 net = models.resnet50(pretrained=True)
@@ -25,11 +41,11 @@ trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.485, 
 # and gets the path to a csv with the list of the images file names and the base path to the folder of the
 # images. If you don't have the csv already, you can use the 'createFolderContentCsv' function
 # from the file FileHandling.py. 
-data = dataset.ImageDataset("csv_path", "images_folder_path", 2, transform=trans)
-
+data = dataset.ImageDataset(IMAGE_CSV_PATH, IMAGE_FOLDER_PATH, NUMBER_OF_CLASSES, transform=trans)
+print(len(data))
 # 6. Specify error and optimization functions 
-crit = nn.MSELoss()
-opt = optim.SGD(net.parameters(), lr=0.001)
+ERROR_FUNCTION = nn.MSELoss()
+OPTIMIZATION_FUNCTION = optim.SGD(net.parameters(), lr=LEARNING_RATE)
 
 # 7. Call the training function
-trainedModel = cnn.trainCrossValidation(net,data,5,crit,opt,50, plotAcc = True)
+trainedModel = CNN.trainCrossValidation(net, data, NUMBER_OF_FOLDS, ERROR_FUNCTION, OPTIMIZATION_FUNCTION, EPOCHS, PLOT_ACCURACY, PLOT_LOSS )
