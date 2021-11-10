@@ -29,6 +29,19 @@ def readImage(path):
     except OSError as err:
         print("Couldn't read file. Error: {0}".format(err))
 
+def saveImage(image: Image, folder: str, filename: str, extension: str = "png"):
+    """ Save a PIL Image to target folder with given name and extension
+    Args:
+        image(Image): Image to be saved
+        folder(string): Target folder
+        filename(string): Output file name   
+        extension(string): Output file extension 
+    """
+
+    path = os.path.join(folder, filename + "." + extension)
+    image.save(path)
+
+
 def createFolderContentCsv(folder_path: str, csv_name:str, extension:str=None):
     """Create a csv file with the contents of a folder
         Args:

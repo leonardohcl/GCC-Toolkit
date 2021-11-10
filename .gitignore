@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 datasets/
+sample-CAM/
 build/
 develop-eggs/
 dist/

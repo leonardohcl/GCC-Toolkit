@@ -55,6 +55,12 @@ class ImageDataset(Dataset):
             ind(int): Image index"""
         return self.images.iloc[ind, 0]
 
+    def getFilepath(self, ind:int):
+        """Get file path from image at given index.
+        Args:
+            ind(int): Image index"""
+        return os.path.join(self.root_dir, self.images.iloc[ind, 0])
+
     def getClass(self, ind:int):
         """Get class number from image at given index.
         Args:
