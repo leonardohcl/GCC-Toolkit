@@ -1,7 +1,6 @@
 import torch
 import time
 import numpy as np
-import CNN as cnn
 import FileHandling as fh
 import Dataset as dataset
 from torchvision import models, transforms
@@ -46,9 +45,13 @@ if torch.cuda.is_available():
     net.cuda()
 
 output_size = net.fc.in_features  # get output size
+# For vgg19 use
+# output_size = net.classifier[6].in_features
 
 # 5. Register hook to desired layer to hold it's output
 net.avgpool.register_forward_hook(getOutput("avg_pool"))
+# For vgg19 use
+# net.classifier[5].register_forward_hook(getOutput("fc"))
 
 
 # 6. Process each image and get the desired layers output
