@@ -29,7 +29,7 @@ for param in net.parameters():
 
 # 3. Update output to match number of classes
 num_feats = net.fc.in_features
-net.fc = nn.Linear(num_feats, 2)
+net.fc = nn.Linear(num_feats, NUMBER_OF_CLASSES)
 
 # 4. Create transforms for the data
 # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
@@ -42,7 +42,7 @@ trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.485, 
 # images. If you don't have the csv already, you can use the 'createFolderContentCsv' function
 # from the file FileHandling.py. 
 data = dataset.ImageDataset(IMAGE_CSV_PATH, IMAGE_FOLDER_PATH, NUMBER_OF_CLASSES, transform=trans)
-print(len(data))
+
 # 6. Specify error and optimization functions 
 ERROR_FUNCTION = nn.MSELoss()
 OPTIMIZATION_FUNCTION = optim.SGD(net.parameters(), lr=LEARNING_RATE)

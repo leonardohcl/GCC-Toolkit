@@ -71,6 +71,10 @@ for idx in range(img_count):
     # give input to cnn
     out = net(img)
 
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
     # get all the data collected in the holder
     img_output = output_holder["avg_pool"]
     # append image class to the end of the output
