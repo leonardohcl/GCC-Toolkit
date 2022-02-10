@@ -9,7 +9,7 @@ from torchvision import transforms
 class ImageDataset(Dataset):
     """Image dataset"""
 
-    def __init__(self, csv_file, root_dir, class_count, transform=None, loadToGpu=False):
+    def __init__(self, csv_file, root_dir, class_count, transform=None):
         """
         Args:
             csv_file (string): Path to the csv file with all images names and classes.
@@ -27,7 +27,6 @@ class ImageDataset(Dataset):
         self.class_count = class_count
         self.root_dir = root_dir
         self.transform = transform
-        self.loadToGpu = loadToGpu
 
     def __len__(self):
         return len(self.images)
@@ -42,10 +41,6 @@ class ImageDataset(Dataset):
 
         if self.transform:
             image = self.transform(image)
-
-        # Transfer inputs to GPU if available
-        if self.loadToGpu and torch.cuda.is_available():
-            image = image.cuda()
 
         return image
 

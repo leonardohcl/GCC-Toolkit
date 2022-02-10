@@ -1,10 +1,51 @@
+import statistics
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import matplotlib.pyplot as plt
 import time
 import copy
 import random
+import numpy as np
+
+def createFolds(dataset, fold_count):
+    shuffled_dataset = random.sample(dataset, len(dataset)) # shuffle the list
+    fold_size = len(shuffled_dataset) // fold_count # get fold size
+    folds = [shuffled_dataset[i*fold_size:(i+1)*fold_size] for i in range(fold_count)] # separate in equally sized folds
+    left_out = len(shuffled_dataset) % fold_count # count left out indexes
+    
+    # distribute left out indexes into folds
+    for idx in range(left_out):
+        folds[idx].append(shuffled_dataset[-1*(idx+1)])
+    
+    return folds
+
+def getFoldGroups(fold_list, fold_idx):
+    eval_set = [fold_set for idx,fold_set in enumerate(fold_list) if idx != fold_idx]
+    return [fold_list[fold_idx], eval_set]
+
+def processInput(input_data, input_labels, model, error_criterion):
+    # Transfer inputs to GPU if available
+    if torch.cuda.is_available():
+        input_data = input_data.cuda()
+        input_labels = input_labels.cuda()
+        
+    # Process the input
+    output = model(input_data)
+    # Get it's predictions                
+    _, predictions = torch.max(output, 1)
+    # Calculate batch loss
+    loss_function = error_criterion(output, input_labels)
+
+    # Get correct predictions
+    _,correct_labels = torch.max(input_labels,1)
+
+    # Get epoch global loss, count correct predictions and get accuracy
+    correct_evals = torch.sum(predictions == correct_labels)
+    loss = loss_function.item() / len(input_data)
+    accuracy = float(correct_evals) / len(input_data)
+
+    torch.cuda.empty_cache()
+
+    return [loss, accuracy, loss_function]
 
 
 def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_algorithm, epochs:int, plot_acc = False, plot_loss = False, datasetOnGpu = False):
@@ -28,10 +69,10 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
     since = time.time()
     
     #Start epoch history track
-    train_acc_hist = []
-    train_loss_hist = []
-    eval_acc_hist = []
-    eval_loss_hist = []
+    train_acc_hist = np.zeros((epochs, k))
+    train_loss_hist = np.zeros((epochs, k))
+    eval_acc_hist = np.zeros((epochs, k))
+    eval_loss_hist = np.zeros((epochs, k))
 
     #Transfer model to GPU if available
     if torch.cuda.is_available():
@@ -46,153 +87,110 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
     
     img_count = len(dataset) # get image count
     img_idx_list = [i for i in range(img_count)] # create list with image indexes
-    random.shuffle(img_idx_list) # shuffle the list
 
     # Separate data in folds
-    fold_size = len(img_idx_list) // k # get fold size
-    folds = [img_idx_list[i*fold_size:(i+1)*fold_size] for i in range(k)] # separate in equally sized folds
-    left_out = len(img_idx_list) % k # count left out indexes
-    # distribute left out indexes into folds
-    for idx in range(left_out):
-        folds[idx].append(img_idx_list[-1*(idx+1)])
+    folds = createFolds(img_idx_list, k)
 
-    for current_fold in range(k):
+    for current_fold_idx in range(k):
         fold_start_time = time.time()
         fold_best_acc = 0.0
-        fold_train_acc_hist = []
-        fold_train_loss_hist = []
-        fold_eval_acc_hist = []
-        fold_eval_loss_hist = []
 
-        # get list with all other folds
-        other_folds = []
-        for i in range(k):
-            if i == current_fold:
-                continue
-            other_folds += folds[i]
-        # Create tensor batch with training images and their labels
-        training_inputs = []
-        training_labels = []
-        for i in range(len(other_folds)):
-            training_inputs.append(dataset[other_folds[i]])
-            training_labels.append(dataset.getExpected(other_folds[i]))
-        training_inputs = torch.stack(training_inputs)
-        training_labels = torch.stack(training_labels)
+        # Get training and eval indexes
+        [train_idxs, eval_idxs] = getFoldGroups(folds, current_fold_idx) 
         
-        # Create tensor batch with evaluation images and their labels
-        eval_inputs = []
-        eval_labels = []
-        for i in range(len(folds[current_fold])):
-            eval_inputs.append(dataset[folds[current_fold][i]])
-            eval_labels.append(dataset.getExpected(folds[current_fold][i]))    
-        eval_inputs = torch.stack(eval_inputs)
-        eval_labels = torch.stack(eval_labels)
-
         # Start epoch iterations
         for epoch in range(epochs):
-            print('-' * 10)
-            print('Fold {}/{} - Epoch {}/{}'.format(current_fold +1, k, epoch + 1, epochs))
             epoch_start_time = time.time()
 
-            for phase in ['train', 'val']:
-                if phase == 'train':
-                    model.train()  # Set model to training mode
-                    # Get inputs for phase
-                    input_data = training_inputs
-                    input_labels = training_labels
-                else:
-                    model.eval()   # Set model to evaluate mode
-                    # Get inputs for phase
-                    input_data = eval_inputs
-                    input_labels = eval_labels
+            # Training phase ------------------
+            model.train()  # Set model to training mode
+            # Get inputs for phase
+            input_data = torch.stack([dataset[i] for i in train_idxs])
+            input_labels = torch.stack([dataset.getExpected(i) for i in train_idxs])
 
-                # Transfer inputs to GPU if available
-                if torch.cuda.is_available():
-                    input_labels = input_labels.cuda()
-                    if datasetOnGpu == False:
-                        input_data = input_data.cuda()
+            # zero the parameter gradients
+            optmization_algorithm.zero_grad()
+            # Process input data
+            output_loss, output_accuracy, loss_info = processInput(input_data, input_labels, model, error_criterion)
+            
+            # apply backward and optimize to adust weights
+            loss_info.backward()
+            optmization_algorithm.step()
+
+            # Save data to training history
+            train_acc_hist[epoch][current_fold_idx] = output_accuracy
+            train_loss_hist[epoch][current_fold_idx] = output_loss
+
+            # print('Training - Loss: {:.4f} Acc: {:.4f}'.format(output_loss, output_accuracy))
+
+            # -----------------------------------
+
+            # Evaluation phase ------------------
+            model.eval()   # Set model to evaluate mode
+
+            # Evaluation phase processes the evaluation set by folds to
+            # improve memory usage. At the end the evaluation accuracy and
+            # loss are retrieved with the means of the values of each 
+            # evaluation fold
+            eval_sets_accuracies = []
+            eval_sets_losses = []
+            for eval_idx_set in eval_idxs:
+                input_data = torch.stack([dataset[i] for i in eval_idx_set])
+                input_labels = torch.stack([dataset.getExpected(i) for i in eval_idx_set])
 
                 # zero the parameter gradients
                 optmization_algorithm.zero_grad()
 
-                # Process the input
-                output = model(input_data)
-                # Get it's predictions                
-                _, preds = torch.max(output, 1)
-                # Calculate batch loss
-                loss = error_criterion(output, input_labels)
+                # Process input data
+                output_loss, output_accuracy, _ = processInput(input_data, input_labels, model, error_criterion)
+            
+                # Save values
+                eval_sets_accuracies.append(output_accuracy)
+                eval_sets_losses.append(output_loss)
 
-                # If training apply backward + optimize to adust weights
-                if phase == 'train':
-                    loss.backward()
-                    optmization_algorithm.step()
+            eval_accuracy = statistics.mean(eval_sets_accuracies)
+            eval_loss = statistics.mean(eval_sets_losses)
 
-                # Get correct predictions
-                _,correct_labels = torch.max(input_labels,1)
+            if eval_accuracy > fold_best_acc:
+                fold_best_acc = eval_accuracy
+            if eval_accuracy > best_acc:
+                best_acc = eval_accuracy
+                best_model_weights = copy.deepcopy(model.state_dict())
 
-                # Get epoch global loss, count correct predictions and get accuracy
-                epoch_correct_evals = torch.sum(preds == correct_labels)
-                epoch_loss = loss.item() / len(input_data)
-                epoch_acc = float(epoch_correct_evals) / len(input_data)
+            # Save data to history
+            eval_acc_hist[epoch][current_fold_idx] = eval_accuracy
+            eval_loss_hist[epoch][current_fold_idx] = eval_loss
 
-                # Save data to history
-                if phase == 'val':
-                    fold_eval_acc_hist.append(epoch_acc)
-                    fold_eval_loss_hist.append(epoch_loss)
-                else:
-                    fold_train_acc_hist.append(epoch_acc)
-                    fold_train_loss_hist.append(epoch_loss)
-
-                print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
-
-                # If accuray of evaluation set increased, save the model as new best
-                if phase == 'val':
-                    if epoch_acc > fold_best_acc:
-                        fold_best_acc = epoch_acc
-                    if epoch_acc > best_acc:
-                        best_acc = epoch_acc
-                        best_model_weights = copy.deepcopy(model.state_dict())
+            # print('Evaluation - Loss: {:.4f} Acc: {:.4f}'.format(eval_loss, eval_accuracy))            
+            # -----------------------------------
 
             epoch_time_elapsed = time.time() - epoch_start_time
-            print('Epoch complete in {:.0f}m {:.0f}s'.format(epoch_time_elapsed // 60, epoch_time_elapsed % 60))    
-            print()
+            print('Fold {}/{} - Epoch {}/{} (elapsed time: {:.0f}m {:.0f}s)'.format(current_fold_idx +1, k, epoch + 1, epochs, epoch_time_elapsed // 60, epoch_time_elapsed % 60))
 
         # reset model weights
         model.load_state_dict(untrained_model_weights)
         
         time_elapsed = time.time() - fold_start_time
-        print('Fold {} Training complete in {:.0f}m {:.0f}s'.format(current_fold+1, time_elapsed // 60, time_elapsed % 60))
-        print('Fold {} Best val Acc: {:4f}'.format(current_fold+1, fold_best_acc))
+        print()
+        print('Fold {} Training complete in {:.0f}m {:.0f}s'.format(current_fold_idx+1, time_elapsed // 60, time_elapsed % 60))
+        print('Fold {} Best val Acc: {:4f}'.format(current_fold_idx+1, fold_best_acc))
+        print('-' * 10)
 
-        train_acc_hist.append(fold_train_acc_hist)
-        train_loss_hist.append(fold_train_loss_hist)
-        eval_acc_hist.append(fold_eval_acc_hist)
-        eval_loss_hist.append(fold_eval_loss_hist)
 
     print()
     time_elapsed = time.time() - since
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     print('Best val Acc: {:4f}'.format(best_acc))
     # Get average curves
-    avg_train_acc = []
-    avg_train_loss = []
-    avg_eval_acc = []
-    avg_eval_loss= []
+    avg_train_acc = np.zeros(epochs)
+    avg_train_loss = np.zeros(epochs)
+    avg_eval_acc = np.zeros(epochs)
+    avg_eval_loss= np.zeros(epochs)
     for epoch in range(epochs):
-        train_acc = 0.0
-        train_loss = 0.0
-        eval_acc = 0.0
-        eval_loss = 0.0
-        for fold in range(k):
-            train_acc += train_acc_hist[fold][epoch]
-            train_loss += train_loss_hist[fold][epoch]
-            eval_acc += eval_acc_hist[fold][epoch]
-            eval_loss += eval_loss_hist[fold][epoch]
-        avg_train_acc.append(train_acc/k)
-        avg_train_loss.append(train_loss/k)
-        avg_eval_acc.append(eval_acc/k)
-        avg_eval_loss.append(eval_loss/k)
-
+        avg_train_acc[epoch] = statistics.mean(train_acc_hist[epoch])
+        avg_train_loss[epoch] = statistics.mean(train_loss_hist[epoch])
+        avg_eval_acc[epoch] = statistics.mean(eval_acc_hist[epoch])
+        avg_eval_loss[epoch] = statistics.mean(eval_loss_hist[epoch])
 
     # Plot graphs
     if plot_acc:
@@ -214,152 +212,4 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
     # load best model weights
     model.load_state_dict(best_model_weights)
 
-    return model
-
-def train(model, dataset, train_percentage:float, error_criterion, optmization_algorithm, epochs:int, plot_acc = False, plot_loss = False):
-    """ Trains a torchvision model using a percentage of the dataset to train and the rest to evaluate the training.
-
-    Args:
-        model(torchvision.models): Neural network model.
-        dataset(Dataset.ImageDataset): Dataset to train.
-        traing_percentage(float): 0 to 1 percentage of the data that should be used to train the model.
-        error_criterion(torch.nn.modules.loss): Error function for the training.
-        optmization_algorithm(torch.optim): Optimization rule for backpropagation.
-        epochs(int): Number of training iteration for each fold.
-        plot_acc(bool): Plot average epoch accuracy for training and evaluation after training is complete.
-        plot_loss(bool): Plot average epoch loss for training and evaluation after training is complete.
-
-    Output:
-        Trained model with the weights that got the highest accuracy in the evaluation while training
-    """
-
-    # Gets execution start timestamp
-    since = time.time()
-    
-    #Start epoch history track
-    train_acc_hist = []
-    train_loss_hist = []
-    eval_acc_hist = []
-    eval_loss_hist = []
-
-    #Transfer model to GPU if available
-    if torch.cuda.is_available():
-        model.cuda()
-
-    # Starts best model and accuracy to current values
-    best_model_weights = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
-    
-    img_count = len(dataset) # get image count
-    img_idx_list = [i for i in range(img_count)] # create list with image indexes
-    random.shuffle(img_idx_list) # shuffle the list
-
-    training_separator_idx = int(img_count * train_percentage) # get separation index
-
-    # Create tensor batch with training images and their labels
-    training_inputs = []
-    training_labels = []
-    for i in range(training_separator_idx):
-        training_inputs.append(dataset[img_idx_list[i]])
-        training_labels.append(dataset.getExpected(img_idx_list[i]))
-    training_inputs = torch.stack(training_inputs)
-    training_labels = torch.stack(training_labels)
-    
-    # Create tensor batch with evaluation images and their labels
-    eval_inputs = []
-    eval_labels = []
-    for i in range(img_count-training_separator_idx):
-        eval_inputs.append(dataset[img_idx_list[training_separator_idx + i]])
-        eval_labels.append(dataset.getExpected(img_idx_list[training_separator_idx + i]))    
-    eval_inputs = torch.stack(eval_inputs)
-    eval_labels = torch.stack(eval_labels)
-
-    # Start epoch iterations
-    for epoch in range(epochs):
-        print('-' * 10)
-        print('Epoch {}/{}'.format(epoch, epochs - 1))
-        epoch_start_time = time.time()
-
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                model.train()  # Set model to training mode
-                # Get inputs for phase
-                input_data = training_inputs
-                input_labels = training_labels
-            else:
-                model.eval()   # Set model to evaluate mode
-                # Get inputs for phase
-                input_data = eval_inputs
-                input_labels = eval_labels
-
-            # Transfer inputs to GPU if available
-            if torch.cuda.is_available():
-                input_data, input_labels = input_data.cuda(), input_labels.cuda()
-
-            # zero the parameter gradients
-            optmization_algorithm.zero_grad()
-
-            # Process the input
-            output = model(input_data)
-            # Get it's predictions                
-            _, predictions = torch.max(output, 1)
-            # Calculate batch loss
-            loss = error_criterion(output, input_labels)
-
-            # If training apply backward + optimize to adust weights
-            if phase == 'train':
-                loss.backward()
-                optmization_algorithm.step()
-
-            # Get correct predictions
-            _,correct_labels = torch.max(input_labels,1)
-
-            # Get epoch global loss, count correct predictions and get accuracy
-            epoch_correct_evals = torch.sum(predictions == correct_labels)
-            epoch_loss = loss.item() / len(input_data)
-            epoch_acc = float(epoch_correct_evals) / len(input_data)
-
-            # Save data to history
-            if phase == 'val':
-              eval_acc_hist.append(epoch_acc)
-              eval_loss_hist.append(epoch_loss)
-            else:
-              train_acc_hist.append(epoch_acc)
-              train_loss_hist.append(epoch_loss)
-
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
-
-            # If accuray of evaluation set increased, save the model as new best
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_weights = copy.deepcopy(model.state_dict())
-
-        epoch_time_elapsed = time.time() - epoch_start_time
-        print('Epoch complete in {:.0f}m {:.0f}s'.format(epoch_time_elapsed // 60, epoch_time_elapsed % 60))    
-        print()
-
-    time_elapsed = time.time() - since
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    print('Best val Acc: {:4f}'.format(best_acc))
-
-    # load best model weights
-    model.load_state_dict(best_model_weights)
-
-    # Plot graphs
-    if plot_acc:
-        fig, ax = plt.subplots()
-        ax.plot(train_acc_hist, 'r', label="Average training acurracy")
-        ax.plot(eval_acc_hist, 'b', label="Average evaluation accuracy")
-        ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Accuracy")
-        ax.legend()
-        plt.show()
-    
-    if plot_loss:
-        fig, ax = plt.subplots()
-        ax.plot(train_loss_hist, 'r', label="Average training loss")
-        ax.plot(eval_loss_hist, 'b', label="Average evaluation loss")
-        ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Loss")
-        ax.legend()
-        plt.show()
-    
     return model
