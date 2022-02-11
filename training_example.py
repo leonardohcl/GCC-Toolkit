@@ -1,5 +1,5 @@
+import torch
 import torch.nn as nn
-import torch.optim as optim
 from torchvision import models,transforms
 import Dataset as dataset
 import CNN
@@ -12,6 +12,8 @@ NUMBER_OF_CLASSES = 2
 LIST_OF_CLASSES = [0, 1]
 # Training details
 LEARNING_RATE = 0.001
+LEARNING_RATE_DROP = 0.75
+LEARNING_RATE_DROP_EVERY_N_EPOCHS = 2
 NUMBER_OF_FOLDS = 2
 EPOCHS = 10
 # Training Visualization
@@ -41,11 +43,24 @@ trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.485, 
 # and gets the path to a csv with the list of the images file names and the base path to the folder of the
 # images. If you don't have the csv already, you can use the 'createFolderContentCsv' function
 # from the file FileHandling.py. 
-data = dataset.ImageDataset(IMAGE_CSV_PATH, IMAGE_FOLDER_PATH, NUMBER_OF_CLASSES, transform=trans)
+data = dataset.ImageDataset(
+    IMAGE_CSV_PATH, 
+    IMAGE_FOLDER_PATH, 
+    NUMBER_OF_CLASSES, 
+    transform=trans, 
+)
 
-# 6. Specify error and optimization functions 
-ERROR_FUNCTION = nn.MSELoss()
-OPTIMIZATION_FUNCTION = optim.SGD(net.parameters(), lr=LEARNING_RATE)
+# 6. Call the training function
+trainedModel = CNN.trainCrossValidation(
+    net,
+    data,
+    NUMBER_OF_FOLDS,
+    EPOCHS,
+    learning_rate = LEARNING_RATE,
+    learning_rate_drop = LEARNING_RATE_DROP,
+    learning_rate_drop_step_size=LEARNING_RATE_DROP_EVERY_N_EPOCHS,
+    plot_acc=PLOT_ACCURACY,
+    plot_loss=PLOT_LOSS,
+    # error_criterion= nn.CrossEntropyLoss()
+)
 
-# 7. Call the training function
-trainedModel = CNN.trainCrossValidation(net, data, NUMBER_OF_FOLDS, ERROR_FUNCTION, OPTIMIZATION_FUNCTION, EPOCHS, PLOT_ACCURACY, PLOT_LOSS )

@@ -1,5 +1,7 @@
 import statistics
 import torch
+import torch.optim as optim
+import torch.nn as nn
 import matplotlib.pyplot as plt
 import time
 import copy
@@ -22,6 +24,9 @@ def getFoldGroups(fold_list, fold_idx):
     eval_set = [fold_set for idx,fold_set in enumerate(fold_list) if idx != fold_idx]
     return [fold_list[fold_idx], eval_set]
 
+def errorUsesClassForLabel(error_criterion):
+    return type(error_criterion) == nn.CrossEntropyLoss
+
 def processInput(input_data, input_labels, model, error_criterion):
     # Transfer inputs to GPU if available
     if torch.cuda.is_available():
@@ -31,12 +36,19 @@ def processInput(input_data, input_labels, model, error_criterion):
     # Process the input
     output = model(input_data)
     # Get it's predictions                
-    _, predictions = torch.max(output, 1)
-    # Calculate batch loss
-    loss_function = error_criterion(output, input_labels)
-
+    _, predictions = torch.max(output, 1)    
     # Get correct predictions
     _,correct_labels = torch.max(input_labels,1)
+
+    # Calculate batch loss
+    if(errorUsesClassForLabel(error_criterion)):
+        loss_labels = torch.tensor([label.tolist().index(1) for label in input_labels], dtype=torch.long)
+        if torch.cuda.is_available():
+            loss_labels = loss_labels.cuda()
+    else:
+        loss_labels = input_labels
+
+    loss_function = error_criterion(output, loss_labels)
 
     # Get epoch global loss, count correct predictions and get accuracy
     correct_evals = torch.sum(predictions == correct_labels)
@@ -48,7 +60,7 @@ def processInput(input_data, input_labels, model, error_criterion):
     return [loss, accuracy, loss_function]
 
 
-def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_algorithm, epochs:int, plot_acc = False, plot_loss = False, datasetOnGpu = False):
+def trainCrossValidation(model, dataset, k:int, epochs:int, learning_rate= 0.1, learning_rate_drop = 0, learning_rate_drop_step_size = 0, error_criterion = nn.MSELoss(), plot_acc = False, plot_loss = False, optimization_method = optim.SGD):
     """ Trains a torchvision model using k-folds cross-validation.
 
     Args:
@@ -56,7 +68,6 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
         dataset(Dataset.ImageDataset): Dataset to train.
         k(int): Number of folds, must be at least 2.
         error_criterion(torch.nn.modules.loss): Error function for the training.
-        optmization_algorithm(torch.optim): Optimization rule for backpropagation.
         epochs(int): Number of training iteration for each fold.
         plot_acc(bool): Plot average epoch accuracy for training and evaluation after training is complete.
         plot_loss(bool): Plot average epoch loss for training and evaluation after training is complete.
@@ -65,8 +76,9 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
     Output:
         Trained model with the weights that got the highest accuracy in the evaluation while training
     """
+
     # Gets execution start timestamp
-    since = time.time()
+    since = time.time()    
     
     #Start epoch history track
     train_acc_hist = np.zeros((epochs, k))
@@ -80,6 +92,8 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
 
     # Save untrained model to reset every fold
     untrained_model_weights = copy.deepcopy(model.state_dict())
+    learning_rate_drop_function = None
+
 
     # Starts best model and accuracy to current values
     best_model_weights = copy.deepcopy(model.state_dict())
@@ -92,6 +106,11 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
     folds = createFolds(img_idx_list, k)
 
     for current_fold_idx in range(k):
+        optmization_algorithm = optimization_method(model.parameters(), lr=learning_rate, weight_decay=0)
+
+        if(learning_rate_drop_step_size > 0 and learning_rate_drop != 0):
+            learning_rate_drop_function = optim.lr_scheduler.StepLR(optmization_algorithm, step_size=learning_rate_drop_step_size, gamma=learning_rate_drop) 
+
         fold_start_time = time.time()
         fold_best_acc = 0.0
 
@@ -116,10 +135,13 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
             # apply backward and optimize to adust weights
             loss_info.backward()
             optmization_algorithm.step()
+            if(learning_rate_drop_function != None):
+                learning_rate_drop_function.step()
 
             # Save data to training history
             train_acc_hist[epoch][current_fold_idx] = output_accuracy
             train_loss_hist[epoch][current_fold_idx] = output_loss
+
 
             # print('Training - Loss: {:.4f} Acc: {:.4f}'.format(output_loss, output_accuracy))
 
@@ -169,6 +191,7 @@ def trainCrossValidation(model, dataset, k:int, error_criterion, optmization_alg
 
         # reset model weights
         model.load_state_dict(untrained_model_weights)
+
         
         time_elapsed = time.time() - fold_start_time
         print()
