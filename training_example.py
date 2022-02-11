@@ -57,10 +57,13 @@ trainedModel = CNN.trainCrossValidation(
     NUMBER_OF_FOLDS,
     EPOCHS,
     learning_rate = LEARNING_RATE,
-    learning_rate_drop = LEARNING_RATE_DROP,
-    learning_rate_drop_step_size=LEARNING_RATE_DROP_EVERY_N_EPOCHS,
-    plot_acc=PLOT_ACCURACY,
-    plot_loss=PLOT_LOSS,
-    # error_criterion= nn.CrossEntropyLoss()
+    learning_rate_drop = LEARNING_RATE_DROP, # optional
+    learning_rate_drop_step_size=LEARNING_RATE_DROP_EVERY_N_EPOCHS, # optional
+    plot_acc=PLOT_ACCURACY, # optional
+    plot_loss=PLOT_LOSS, # optional
+    error_criterion= nn.CrossEntropyLoss(), # optional
+    log_name="training_exemple" # optional
 )
 
+# 7. Save trained model (Optional)
+torch.save(trainedModel.state_dict(), "trained_model")
