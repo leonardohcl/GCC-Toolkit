@@ -9,25 +9,25 @@ import random
 import numpy as np
 import logging
 
-def createLogger(name: str):
+def createLogger(name: str, log_to_file = False):
     logger = logging.getLogger(name)
     # Create handlers
-    f_handler = logging.FileHandler(name + ".log")
-    f_handler.setLevel(logging.DEBUG)
-
     c_handler = logging.StreamHandler()
     c_handler.setLevel(logging.INFO)
 
     # Create formatters and add it to handlers
-    f_format = logging.Formatter('%(message)s')
-    f_handler.setFormatter(f_format)
-
     c_format = logging.Formatter('%(message)s')
     c_handler.setFormatter(c_format)
 
     # Add handlers to the logger
-    logger.addHandler(f_handler)
     logger.addHandler(c_handler)
+
+    if(log_to_file):
+        f_handler = logging.FileHandler(name + ".log")
+        f_handler.setLevel(logging.DEBUG)
+        f_format = logging.Formatter('%(message)s')
+        f_handler.setFormatter(f_format)
+        logger.addHandler(f_handler)
 
     return logger
 
@@ -103,10 +103,12 @@ def trainCrossValidation(model, dataset, k:int, epochs:int, learning_rate= 0.1, 
         Trained model with the weights that got the highest accuracy in the evaluation while training
     """
 
-    logger = createLogger("cnn_kfold_training" if log_name == None else log_name )
     if(log_name != None):
-        logger.setLevel(logging.DEBUG)
-
+        logger = createLogger(log_name, True)
+    else:
+        logger = createLogger("cnn_training_log")        
+    logger.setLevel(logging.DEBUG)
+    
     # Gets execution start timestamp
     since = time.time()    
     
@@ -249,8 +251,8 @@ def trainCrossValidation(model, dataset, k:int, epochs:int, learning_rate= 0.1, 
         avg_eval_loss[epoch] = statistics.mean(eval_loss_hist[epoch])
 
     logger.debug("\nSUMMARY:\n")
-    logger.debug('Best accuracy: {:4f}'.format(best_acc))
-    logger.debug('Best loss: {:4f}\n'.format(best_loss))
+    logger.info('Best accuracy: {:4f}'.format(best_acc))
+    logger.info('Best loss: {:4f}\n'.format(best_loss))
     logger.debug(f"Avg. training loss per epoch:\n{avg_train_loss}\n")
     logger.debug(f"Avg. training accuracy per epoch:\n{avg_train_acc}\n")
     logger.debug(f"\nAvg. evaluation loss per epoch:\n{avg_eval_loss}\n")
