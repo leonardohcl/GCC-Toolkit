@@ -1,33 +1,8 @@
 import time
 import math
-import statistics
 import numpy as np
 from PIL import Image
-from typing import Union
-
-
-def PixelIsInTheBox(center: Union[list, int], pixel: Union[list, int], r: int):
-    """Checks if a pixel is contained in a box of size r using the chessboard distance. Args:
-            center: values for the pixel in the center of the box
-            pixel: values for the reference pixel to check if is in the box
-            r: size of the square box
-    """
-    if(type(center) != type(pixel)):
-        raise Exception(
-            f"center pixel and reference pixel must be of same type. received {type(center)} {type(pixel)}")
-
-    if(type(center) == int):
-        return abs(pixel - center) <= r
-
-    channels = len(center)
-    if (channels != len(pixel)):
-        raise Exception(
-            f"center pixel and reference pixel does not have the same dimensions ({channels} against {len(pixel)})")
-    for i in range(channels):
-        diff = abs(pixel[i] - center[i])
-        if(diff > r):
-            return False
-    return True
+from GlidingBoxHelper import PixelIsInTheBox
 
 
 def GetIntervalSubdivisions(start: int, end: int, blocks: int):
@@ -153,30 +128,3 @@ def GlidingBoxProbabilityMatrix(path: str, min_r: int = 3, max_r: int = 11, imag
             print(f"elapsed {end-start:.4f}s")
 
     return probability_matrix
-
-
-def AreaUnderCurve(x, y):
-    if len(x) != len(y):
-        raise Exception("X and Y lists don't match length")
-    n = len(x)
-    a = x[0]
-    b = x[n - 1]
-    sum = 0
-    for idx in range(len(x) - 1):
-        sum += y[idx] + y[idx + 1]
-    return ((b-a)/(2*n)) * sum
-
-
-def CurveSkweness(fx):
-    n = len(fx)
-    fx_mean = statistics.mean(fx)
-    top = sum(pow(value - fx_mean, 3) for value in fx) / n
-    bottom = math.sqrt(pow(sum(pow(value - fx_mean, 2) for value in fx) / n, 3))
-    return top/bottom
-
-
-def CurveAreaRatio(x, y):
-    if len(x) != len(y):
-        raise Exception("X and Y lists don't match length")
-    split_point = math.floor(len(x) / 2)
-    return AreaUnderCurve(x[:split_point], y[:split_point]) / AreaUnderCurve(x[split_point:], y[split_point:])

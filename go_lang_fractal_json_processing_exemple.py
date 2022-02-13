@@ -2,6 +2,7 @@ import pandas as pd
 import Fractal as frac
 import FileHandling as fh
 import GoLangJson
+import Curve
 
 # 0. Define important variables
 # Input details
@@ -90,15 +91,18 @@ for idx in range(len(IMAGE_LIST)):
             raise Exception(
                 "Probability matrix didn't have the values for r={} which is between the specified interval {} <= r <= {}".format(r, MIN_R, MAX_R))
         r_lacunarity = frac.LacunarityFromProabilityMatrix([r_probs], r, r)[0]
-        r_fractal_dimension = frac.FractalDimensionFromProabilityMatrix([r_probs], r, r)[0]
+        r_fractal_dimension = frac.FractalDimensionFromProabilityMatrix([r_probs], r, r)[
+            0]
         lacunarity_curve.append(r_lacunarity)
         fractal_dimensions.append(r_fractal_dimension)
-    area = frac.AreaUnderCurve(R_RANGE, lacunarity_curve)
-    skew = frac.CurveSkweness(lacunarity_curve)
-    area_ratio = frac.CurveAreaRatio(R_RANGE, lacunarity_curve)
+    area = Curve.Area(R_RANGE, lacunarity_curve)
+    skew = Curve.Skweness(lacunarity_curve)
+    area_ratio = Curve.AreaRatio(R_RANGE, lacunarity_curve)
     max_lacunarity = max(lacunarity_curve)
-    features = lacunarity_curve + fractal_dimensions + [area, skew, area_ratio, max_lacunarity, image_class]
+    features = lacunarity_curve + fractal_dimensions + \
+        [area, skew, area_ratio, max_lacunarity, image_class]
     ARFF_CONTENT.append(features)
 
 # 3. Create .arff file
-arff = fh.createArffFile(ARFF_NAME, ARFF_CONTENT, ARFF_ATTRIBUTES, ARFF_CLASSES)
+arff = fh.createArffFile(ARFF_NAME, ARFF_CONTENT,
+                         ARFF_ATTRIBUTES, ARFF_CLASSES)
