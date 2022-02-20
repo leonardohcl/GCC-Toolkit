@@ -34,15 +34,17 @@ class ImageDataset(Dataset):
     def __getitem__(self, ind:int):
         if torch.is_tensor(ind):
             ind = ind.tolist()
-
-        img_path = os.path.join(self.root_dir,
-                                self.images.iloc[ind, 0])
-        image = FileHandling.readImage(img_path)
+        
+        image = self.getRawImage(ind)
 
         if self.transform:
             image = self.transform(image)
 
         return image
+
+    def getRawImage(self, ind:int):
+        img_path =  self.getFilepath(ind) 
+        return FileHandling.readImage(img_path)
 
     def getFilename(self, ind:int):
         """Get file name from image at given index.
@@ -54,7 +56,7 @@ class ImageDataset(Dataset):
         """Get file path from image at given index.
         Args:
             ind(int): Image index"""
-        return os.path.join(self.root_dir, self.images.iloc[ind, 0])
+        return os.path.join(self.root_dir, self.getFilename(ind))
 
     def getClass(self, ind:int):
         """Get class number from image at given index.
