@@ -45,9 +45,9 @@ def batch_predict(images):
     batch = torch.stack(tuple(image_transform(i) for i in images), dim=0)
 
     # use GPU if available
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # model.to(device)
-    # batch = batch.to(device)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    batch = batch.to(device)
 
     # get ouput
     logits = model(batch)
@@ -98,3 +98,5 @@ for image_index in range(img_count):
     # save the LIME image
     filename = filename.split('.')[0]
     fh.saveImage(lime_image, OUTPUT_FOLDER, filename)
+
+    if(torch.cuda.is_available()): torch.cuda.empty_cache() # It's important to clear the cuda memory of unused data after getting a LIME from an image. This algorithms takes a lot of the memory available and if processing several images there probably would be an out of memory error if this was not done 
