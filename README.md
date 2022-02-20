@@ -42,6 +42,10 @@ To extract deep features from a CNN, either with ou without any transfer learnin
 
 The values from a CNN internal layer can hold relevant information describing the patterns on an Image. When these values are used as features, they're known as deep features. At [layer_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/layer_extraction_example.py) there's a quick script showing how to obtain those and save it as a '.arff' file.
 
+## LIME Extraction
+
+Lime is short for Local Interpretable Model-Agnostic Explanations. This means that a LIME can gather the information about which areas (or superpixels) of the image have contributed to a given output.  By following [lime_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/lime_extraction_example.py) you can check the steps to get this kind of image using the scripts on the repository.
+
 ## CAM Extraction
 
 A Class Activation Map shows which areas of an image contribute more to the final result. This information can be used in many forms, and can be obtained following the script at [cam_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/cam_extraction_example.py). The script shows how to acquire these CAMs in four different ways: a grayscale map, a colormap, a colormap overlaying the original image and multiply overlay of the grayscale map on the original image. Here are some examples of the resulting images obtained from a VGG16 CNN pre-trained on the Imagenet dataset:
@@ -117,3 +121,6 @@ These scripts use some external packages that are listed below with the versions
   
 
 [pytorch-grad-cam](https://github.com/jacobgil/pytorch-grad-cam) v1.3.1
+
+
+[lime](https://github.com/marcotcr/lime) v0.2.0.1

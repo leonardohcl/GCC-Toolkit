@@ -25,7 +25,7 @@ BW_OVERLAY_FOLDER_NAME = os.path.join(OUTPUT_FOLDER, "Overlay")
 JET_FOLDER_NAME = os.path.join(OUTPUT_FOLDER, "Colormap")
 JET_OVERLAY_FOLDER_NAME = os.path.join(OUTPUT_FOLDER, "Colormap Overlay")
 
-# 0.1. Just to be the shure the output folder(s) exists
+# 0.1. Just to be the sure the output folder(s) exists
 print("Setting up extractors and structures... please hold on :)")
 if os.path.isdir(OUTPUT_FOLDER) == False:
     os.mkdir(OUTPUT_FOLDER)
