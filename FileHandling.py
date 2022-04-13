@@ -41,7 +41,6 @@ def saveImage(image: Image, folder: str, filename: str, extension: str = "png"):
     path = os.path.join(folder, filename + "." + extension)
     image.save(path)
 
-
 def createFolderContentCsv(folder_path: str, csv_name:str, extension:str=None):
     """Create a csv file with the contents of a folder
         Args:
@@ -203,7 +202,7 @@ def mergeArffs(arff1:Arff, arff2: Arff):
         Combined Arff object 
     """
     if len(arff1) != len(arff2):
-        raise Exception("Can't combine arffs with different data length.")
+        raise Exception("Can't combine arffs with different data length. Received {} and {}".format(len(arff1), len(arff2)))
 
     if arff1.classes != arff2.classes:
         raise Exception("Can't combine arffs with different classes.")

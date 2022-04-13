@@ -15,11 +15,15 @@ def Area(x, y):
 
 
 def Skweness(fx):
-    n = len(fx)
-    fx_mean = statistics.mean(fx)
-    top = sum(pow(value - fx_mean, 3) for value in fx) / n
-    bottom = math.sqrt(pow(sum(pow(value - fx_mean, 2) for value in fx) / n, 3))
-    return top/bottom
+    try:
+        n = len(fx)
+        fx_mean = statistics.mean(fx)
+        top = sum(pow(value - fx_mean, 3) for value in fx) / n
+        bottom = math.sqrt(pow(sum(pow(value - fx_mean, 2) for value in fx) / n, 3))
+        return top/bottom    
+    except:
+        return 0.0
+    
 
 
 def AreaRatio(x, y):
