@@ -1,8 +1,7 @@
 import os
 import torch
 import numpy as np
-import Dataset as ds
-from tqdm import tqdm
+from Dataset import ImageDataset
 import FileHandling as fh
 from lime import lime_image
 import torch.nn.functional as F
@@ -13,7 +12,7 @@ from torchvision import models, transforms
 # Input info
 IMAGE_CSV_PATH = "sample/sample-images.csv"
 IMAGE_FOLDER_PATH = "sample"
-NUMBER_OF_CLASSES = 2
+CLASSES = [0, 1]
 
 # Output info
 OUTPUT_FOLDER = "sample-LIME"
@@ -29,20 +28,24 @@ if os.path.isdir(OUTPUT_FOLDER) == False:
 # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
 # ImageNet dataset mean and standard deviations of each color channel. The pretraining was applied
 # using this values, but hey can be changed to values that best suits your case.
-image_transform = transforms.Compose([transforms.ToTensor(
-), transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
-dataset = ds.ImageDataset(
-    IMAGE_CSV_PATH, IMAGE_FOLDER_PATH, 2, image_transform)
+transform_functions = transforms.Compose([transforms.ToTensor(),
+                                         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])
+dataset = ImageDataset(IMAGE_CSV_PATH,
+                       IMAGE_FOLDER_PATH,
+                       CLASSES,
+                       transform_functions)
 img_count = len(dataset)
 
 # 2. Get the CNN model
-model = models.inception_v3(pretrained=True, aux_logits=False, init_weights=False)
+model = models.resnet50(pretrained=True)
 model.eval()  # set it to evaluation mode
 
 # 3. Define a function for the CNN to classify inputs (required later for the LIME explainer)
+
+
 def batch_predict(images):
     # transform input images to tensors
-    batch = torch.stack(tuple(image_transform(i) for i in images), dim=0)
+    batch = torch.stack(tuple(transform_functions(i) for i in images), dim=0)
 
     # use GPU if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -67,9 +70,9 @@ explainer = lime_image.LimeImageExplainer()
 # 3. Process the dataset
 # obs. tqdm here is just so there's a progressbar showing the loop progress
 for image_index in range(img_count):
-    filename = dataset.getFilename(image_index)
+    filename = dataset[image_index].filename
     print(f"processing {filename} ({image_index + 1}/{img_count})")
-    img = dataset.getRawImage(image_index)  # load image as is
+    img = dataset[image_index].get_image()  # load image as is
     img = img.convert("RGB")
 
     # get the LIME explanation for the image
@@ -82,21 +85,22 @@ for image_index in range(img_count):
 
     # get the binary mask that defines where are the superpixels that explain the classification
     temp_img, mask = explanation.get_image_and_mask(explanation.top_labels[0],
-                                             positive_only=True,  # this is a flag to indicate that we only wnat the superpixels that have contributed to the classification, there's also a negative_only parameter that shows the pixels that have had a negative contribution to the classification
-                                             num_features=5,  # number of superpixels to be used to explain the classfication, 5 is the default number but feel free to move it around
-                                             )
+                                                    positive_only=True,  # this is a flag to indicate that we only wnat the superpixels that have contributed to the classification, there's also a negative_only parameter that shows the pixels that have had a negative contribution to the classification
+                                                    num_features=5,  # number of superpixels to be used to explain the classfication, 5 is the default number but feel free to move it around
+                                                    )
 
     # apply mask to the image
     width, height = np.shape(mask)
     for i in range(height):
         for j in range(width):
-            if(mask[j][i] == 0):
+            if (mask[j][i] == 0):
                 temp_img[:][j][i] = 0
 
-    lime_img = Image.fromarray(temp_img)   
+    lime_img = Image.fromarray(temp_img)
 
     # save the LIME image
     filename = filename.split('.')[0]
-    fh.saveImage(lime_image, OUTPUT_FOLDER, filename)
+    fh.saveImage(lime_img, OUTPUT_FOLDER, filename)
 
-    if(torch.cuda.is_available()): torch.cuda.empty_cache() # It's important to clear the cuda memory of unused data after getting a LIME from an image. This algorithms takes a lot of the memory available and if processing several images there probably would be an out of memory error if this was not done 
+    if (torch.cuda.is_available()):
+        torch.cuda.empty_cache()  # It's important to clear the cuda memory of unused data after getting a LIME from an image. This algorithms takes a lot of the memory available and if processing several images there probably would be an out of memory error if this was not done

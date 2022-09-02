@@ -5,277 +5,668 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import time
 import copy
-import random
+from random import sample
 import numpy as np
+import math
 import logging
+from Dataset import ImageDataset
+from tqdm import tqdm
+from tqdm.notebook import tqdm as tqdm_notebook
 
-def createLogger(name: str, log_to_file = False):
+
+class ModelLearningSummary:
+    def __init__(self, epochs: int) -> None:
+        self.best_accuracy = 0.0
+        self.best_loss = np.Infinity
+        self.training = PhaseHistory(epochs)
+        self.eval = PhaseHistory(epochs)
+
+
+class PhaseHistory:
+    def __init__(self, epochs: int) -> None:
+        self.accuracy = np.zeros(epochs)
+        self.loss = np.zeros(epochs)
+
+
+class CrossValidationLearningSummary:
+    def __init__(self, epochs: int) -> None:
+        self.best_accuracy = 0.0
+        self.best_loss = np.Infinity
+        self._epochs = epochs
+        self.folds = []
+
+    def get_average_performance(self) -> ModelLearningSummary:
+        summary = ModelLearningSummary(self._epochs)
+        fold_count = len(self.folds)
+
+        for epoch in range(self._epochs):
+            for fold in self.folds:
+                summary.training.accuracy[epoch] += fold.training.accuracy[epoch]
+                summary.training.loss[epoch] += fold.training.loss[epoch]
+                summary.eval.accuracy[epoch] += fold.eval.accuracy[epoch]
+                summary.eval.loss[epoch] += fold.eval.loss[epoch]
+            summary.training.accuracy[epoch] /= fold_count
+            summary.training.loss[epoch] /= fold_count
+            summary.eval.accuracy[epoch] /= fold_count
+            summary.eval.loss[epoch] /= fold_count
+        return summary
+
+
+def create_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
     # Create handlers
-    c_handler = logging.StreamHandler()
-    c_handler.setLevel(logging.INFO)
 
-    # Create formatters and add it to handlers
-    c_format = logging.Formatter('%(message)s')
-    c_handler.setFormatter(c_format)
-
-    # Add handlers to the logger
-    logger.addHandler(c_handler)
-
-    if(log_to_file):
-        f_handler = logging.FileHandler(name + ".log")
-        f_handler.setLevel(logging.DEBUG)
-        f_format = logging.Formatter('%(message)s')
-        f_handler.setFormatter(f_format)
-        logger.addHandler(f_handler)
+    f_handler = logging.FileHandler(name + ".log")
+    f_handler.setLevel(logging.DEBUG)
+    f_format = logging.Formatter('%(message)s')
+    f_handler.setFormatter(f_format)
+    logger.addHandler(f_handler)
 
     return logger
 
-def createFolds(dataset, fold_count):
-    shuffled_dataset = random.sample(dataset, len(dataset)) # shuffle the list
-    fold_size = len(shuffled_dataset) // fold_count # get fold size
-    folds = [shuffled_dataset[i*fold_size:(i+1)*fold_size] for i in range(fold_count)] # separate in equally sized folds
-    left_out = len(shuffled_dataset) % fold_count # count left out indexes
-    
-    # distribute left out indexes into folds
-    for idx in range(left_out):
-        folds[idx].append(shuffled_dataset[-1*(idx+1)])
-    
-    return folds
 
-def getFoldGroups(fold_list, fold_idx):
-    eval_set = [fold_set for idx,fold_set in enumerate(fold_list) if idx != fold_idx]
-    return [fold_list[fold_idx], eval_set]
+def write_log(txt: str, log: logging.Logger, print_text=True) -> None:
+    if (print_text):
+        print(txt)
+    if (log == None):
+        return
+    log.debug(txt)
 
-def errorUsesClassForLabel(error_criterion):
-    return type(error_criterion) == nn.CrossEntropyLoss
 
-def processInput(input_data, input_labels, model, error_criterion):
-    # Transfer inputs to GPU if available
-    if torch.cuda.is_available():
-        input_data = input_data.cuda()
-        input_labels = input_labels.cuda()
-        
-    # Process the input
-    output = model(input_data)
-    # Get it's predictions                
-    _, predictions = torch.max(output, 1)    
-    # Get correct predictions
-    _,correct_labels = torch.max(input_labels,1)
+def split_data(data: list, train_prct: float, eval_prct: float):
+    """
+    Returns data splitted in training, evaluation and test groups
 
-    # Calculate batch loss
-    if(errorUsesClassForLabel(error_criterion)):
-        loss_labels = torch.tensor([label.tolist().index(1) for label in input_labels], dtype=torch.long)
-        if torch.cuda.is_available():
-            loss_labels = loss_labels.cuda()
-    else:
-        loss_labels = input_labels
+    Parameters
+    ---
+    data : list
+        List of data to be split
+    train_prct : float
+        Percentage of data to be included into training set (0 to 1)
+    eval_prct : float
+        Percentage of data to be included into evaluation set (0 to 1)
 
-    loss_function = error_criterion(output, loss_labels)
+    Returns
+    ---
+    tuple[list, list, list]
+        The training, evaluation and test groups respectively 
+    """
+    sample_count = len(data)
+    train_size = math.floor(sample_count * train_prct)
+    eval_size = math.floor(sample_count * eval_prct)
 
-    # Get epoch global loss, count correct predictions and get accuracy
-    correct_evals = torch.sum(predictions == correct_labels)
-    loss = loss_function.item() / len(input_data)
-    accuracy = float(correct_evals) / len(input_data)
+    return data[:train_size], data[train_size:train_size + eval_size], data[train_size + eval_size:]
 
-    torch.cuda.empty_cache()
 
-    return [loss, accuracy, loss_function]
+def create_folds(data: ImageDataset, fold_count: int):
+    """
+        Separate data into folds
 
-def trainCrossValidation(model, dataset, k:int, epochs:int, learning_rate= 0.1, learning_rate_drop = 0, learning_rate_drop_step_size = 0, error_criterion = nn.MSELoss(), plot_acc = False, plot_loss = False, optimization_method = optim.SGD, log_name:str = None):
-    """ Trains a torchvision model using k-folds cross-validation.
+        Parameters
+        ---
+        data : list
+            Data to be split into folds
+        fold_count : int
+            Number of folds to split the data
 
-    Args:
-        model(torchvision.models): Neural network model.
-        dataset(Dataset.ImageDataset): Dataset to train.
-        k(int): Number of folds, must be at least 2.
-        epochs(int): Number of training iteration for each fold.
-        learning_rate(float): Learning rate for each epoch
-        learning_rate_drop(float): Amount to decease the leraning rate at a given interval
-        learning_rate_drop_step_size(int): Number of epochs set as the interval to decrease the learning rate
-        error_criterion(torch.nn.modules.loss): Error function for the training. Uses MSE as default.
-        optimization_method(torch.optim): Optimization method applied. Uses SGD as default.
-        plot_acc(bool): Plot average epoch accuracy for training and evaluation after training is complete.
-        plot_loss(bool): Plot average epoch loss for training and evaluation after training is complete.
-        log_name(str): Filename for the log where the training proccess will be registered. If none given, no log will be created.
-
-    Output:
-        Trained model with the weights that got the highest accuracy in the evaluation while training
+        Returns
+        ---
+        list
+            List with each fold (other lists) of data
     """
 
-    if(log_name != None):
-        logger = createLogger(log_name, True)
+    # shuffle the list
+    shuffled_data = sample(data.images, len(data))
+    # get fold size
+    fold_size = len(shuffled_data) // fold_count
+    # separate in equally sized folds
+    folds = [shuffled_data[i*fold_size:(i+1)*fold_size]
+             for i in range(fold_count)]
+    # count left out data
+    left_out = len(shuffled_data) % fold_count
+    # distribute left out data into folds
+    for idx in range(left_out):
+        folds[idx].append(shuffled_data[-1*(idx+1)])
+
+    return folds
+
+
+def copy_weights(model: nn.Module):
+    """
+        Get a copy of the weights from a neural network model
+
+        Parameters
+        ---
+        model : torch.nn.Module
+            Neural network from which the weights should be extracted
+
+        Returns
+        ---
+        OrderedDict[str,Tensor]
+            Weights for a neural network                
+    """
+    return copy.deepcopy(model.state_dict())
+
+
+def get_fold_groups(current_fold_index: int, all_folds: list):
+    """
+        Aggregate fold list into separate groups containing training data and evaluation data
+        according to which is the current fold. 
+
+        Parameters
+        ---
+        current_fold_index : int
+            Index for the current fold (evaluation data)
+        all_folds : list[list]
+            List with all the separated folds
+
+        Returns
+        ---
+        tuple[list,list]
+            Respectively the evaluation and training groups of data
+    """
+    train = []
+    for idx in range(len(all_folds)):
+        if idx != current_fold_index:
+            train += all_folds[idx]
+    return all_folds[current_fold_index], train
+
+
+def create_batches(data: list, max_batch_size: int):
+    """
+        Separete data into chunks of a given size
+
+        Parameters
+        ---
+        data : list
+            List of data to be split into batches
+        max_batch_size : int
+            Maximum expected size of the output batches, 0 means there's no limit so there's only 1 batch with all the data
+
+        Returns
+        ---
+        list[list]
+            List with the splitted data into separated lists
+    """
+    if max_batch_size <= 0:
+        return [data]
+    batch_count = math.floor(len(data)/max_batch_size) + 1
+    batches = []
+    for batch_idx in range(batch_count):
+        start_idx = batch_idx*max_batch_size
+        end_idx = start_idx + max_batch_size
+        batches.append(data[start_idx:end_idx])
+    return [batch for batch in batches if len(batch) > 0]
+
+
+def evaluate_model(model: nn.Module, data: list, labels: list, error_fn, device: str):
+    """
+        Evaluate neural network classification model based on the supplied data and error function
+
+        Parameters
+        ---
+        model : torch.nn.Module
+            Neural network model to evaluate
+        data : list
+            List with evaluation data
+        labels : list
+            List of labels expected for the evaluation data (with matching order)
+        error_fn  : torch.nn error function
+            Error function to be applied on the evaluation
+        device : str
+            Device used to perform the computing (either cpu or cuda)
+
+        Returns
+        ---
+            tuple[float, float, Tensor]
+            Respectively the value for the evaluation loss, acuracy and 
+            information for the error function to be used on the backpropagation
+    """
+    # get correct labels
+    _, correct_labels = torch.max(labels.to(device), 1)
+
+    # predict data
+    output = model(data.to(device))
+    # get error
+    loss_output = error_fn(output, labels.to(device))
+
+    # define predictions as a single value for the highest probability output
+    _, predictions = torch.max(output, 1)
+
+    # count the correct predictions
+    correct = torch.sum(predictions == correct_labels)
+    # calculate loss
+    loss = loss_output.item() / len(data)
+    # calculate model accuracy
+    accuracy = float(correct) / len(data)
+
+    return loss, accuracy, loss_output
+
+
+def process_input(model: nn.Module,
+                  data: list,
+                  labels: list,
+                  error_fn,
+                  optimization_fn: optim.Optimizer = None,
+                  device=torch.device("cpu"),
+                  max_batch_size: int = 0,
+                  learn=False,):
+    """
+        Process input data in batches using a neural network model
+
+        Parameters
+        ---
+        model : torch.nn.Module
+            Neural network model to evaluate
+        data : list
+            List with input data
+        labels : list
+            List of labels expected for the data (with matching order)
+        error_fn  : torch.nn error function
+            Error function to be applied on the processing
+        optimization_fn : torch.optim.Optimizer, optional
+            Optimization function used on training to realize the backpropagation.
+            Only required if training while processing
+        device : torch.device
+            Device used to perform the computing (default is cpu).
+        max_batch_size : int, optional
+            Maximum size of the batches processed (default is 0 meaning there's no limit)
+        learn : bool, optional
+            Whether or not to train the model while processing (default is False)
+
+        Returns
+        ---
+            tuple[float, float, Tensor]
+            Respectively the value for the evaluation loss, acuracy and 
+            information for the error function to be used on the backpropagation
+    """
+
+    # define processing mode on the neural network
+    if learn:
+        model.train()
     else:
-        logger = createLogger("cnn_training_log")        
-    logger.setLevel(logging.DEBUG)
-    
-    # Gets execution start timestamp
-    since = time.time()    
-    
-    #Start epoch history track
-    train_acc_hist = np.zeros((epochs, k))
-    train_loss_hist = np.zeros((epochs, k))
-    eval_acc_hist = np.zeros((epochs, k))
-    eval_loss_hist = np.zeros((epochs, k))
+        model.eval()
 
-    #Transfer model to GPU if available
-    if torch.cuda.is_available():
-        model.cuda()
+    # split input into batches to avoid memory overload
+    data_input = create_batches(data, max_batch_size)
+    data_labels = create_batches(labels, max_batch_size)
+    batch_count = len(data_input)
+    loss = 0
+    accuracy = 0
 
-    # Save untrained model to reset every fold
-    untrained_model_weights = copy.deepcopy(model.state_dict())
-    learning_rate_drop_function = None
+    # process batches
+    for batch_idx in range(batch_count):
 
+        # create stacked input from data
+        batch_input = torch.stack([img.get_tensor()
+                                  for img in data_input[batch_idx]])
+        batch_labels = torch.stack(data_labels[batch_idx])
 
-    # Starts best model and accuracy to current values
-    best_model_weights = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
-    best_loss = np.Infinity
-    
-    img_count = len(dataset) # get image count
-    img_idx_list = [i for i in range(img_count)] # create list with image indexes
+        if learn:
+            # if learning, clear the gradient to get a brand new adjustment
+            # with clean information
+            optimization_fn.zero_grad()
 
-    # Separate data in folds
-    folds = createFolds(img_idx_list, k)
+        # evaluate model with input data
+        batch_loss, batch_accuracy, loss_info = evaluate_model(model,
+                                                               batch_input,
+                                                               batch_labels,
+                                                               error_fn=error_fn,
+                                                               device=device)
 
-    for current_fold_idx in range(k):
-        logger.debug(f"\nTraning fold {current_fold_idx+1}")
-        optmization_algorithm = optimization_method(model.parameters(), lr=learning_rate, weight_decay=0)
+        # hold loss and accuracy values to summarize later
+        accuracy += batch_accuracy
+        loss += batch_loss
 
-        if(learning_rate_drop_step_size > 0 and learning_rate_drop != 0):
-            learning_rate_drop_function = optim.lr_scheduler.StepLR(optmization_algorithm, step_size=learning_rate_drop_step_size, gamma=learning_rate_drop) 
-
-        fold_start_time = time.time()
-        fold_best_acc = 0.0
-
-        # Get training and eval indexes
-        [train_idxs, eval_idxs] = getFoldGroups(folds, current_fold_idx) 
-        
-        # Start epoch iterations
-        for epoch in range(epochs):
-            logger.debug(f"\n  Epoch {epoch+1}")
-            epoch_start_time = time.time()
-
-            # Training phase ------------------
-            model.train()  # Set model to training mode
-            # Get inputs for phase
-            input_data = torch.stack([dataset[i] for i in train_idxs])
-            input_labels = torch.stack([dataset.getExpected(i) for i in train_idxs])
-
-            # zero the parameter gradients
-            optmization_algorithm.zero_grad()
-            # Process input data
-            output_loss, output_accuracy, loss_info = processInput(input_data, input_labels, model, error_criterion)
-            
-            # apply backward and optimize to adust weights
+        if learn:
+            # if learning, apply the adjustment with backpropagation
             loss_info.backward()
-            optmization_algorithm.step()
-            if(learning_rate_drop_function != None):
-                learning_rate_drop_function.step()
+            optimization_fn.step()
 
-            # Save data to training history
-            train_acc_hist[epoch][current_fold_idx] = output_accuracy
-            train_loss_hist[epoch][current_fold_idx] = output_loss
+        if device == torch.device("cuda:0"):
+            # if using gpu, clear the cache of used data to save up on
+            # memory use
+            torch.cuda.empty_cache()
 
-
-            logger.debug('    Training - Loss: {:.4f} Acc: {:.4f}'.format(output_loss, output_accuracy))
-
-            # -----------------------------------
-
-            # Evaluation phase ------------------
-            model.eval()   # Set model to evaluate mode
-
-            # Evaluation phase processes the evaluation set by folds to
-            # improve memory usage. At the end the evaluation accuracy and
-            # loss are retrieved with the means of the values of each 
-            # evaluation fold
-            eval_sets_accuracies = []
-            eval_sets_losses = []
-            for eval_idx_set in eval_idxs:
-                input_data = torch.stack([dataset[i] for i in eval_idx_set])
-                input_labels = torch.stack([dataset.getExpected(i) for i in eval_idx_set])
-
-                # zero the parameter gradients
-                optmization_algorithm.zero_grad()
-
-                # Process input data
-                output_loss, output_accuracy, _ = processInput(input_data, input_labels, model, error_criterion)
-            
-                # Save values
-                eval_sets_accuracies.append(output_accuracy)
-                eval_sets_losses.append(output_loss)
-
-            eval_accuracy = statistics.mean(eval_sets_accuracies)
-            eval_loss = statistics.mean(eval_sets_losses)
-
-            if eval_accuracy > fold_best_acc:
-                fold_best_acc = eval_accuracy
-            if eval_accuracy > best_acc:
-                best_acc = eval_accuracy
-                best_loss = eval_loss
-                best_model_weights = copy.deepcopy(model.state_dict())
-
-            # Save data to history
-            eval_acc_hist[epoch][current_fold_idx] = eval_accuracy
-            eval_loss_hist[epoch][current_fold_idx] = eval_loss
-
-            logger.debug('    Evaluation - Loss: {:.4f} Acc: {:.4f}'.format(eval_loss, eval_accuracy))            
-            # -----------------------------------
-
-            epoch_time_elapsed = time.time() - epoch_start_time
-            logger.info('    Fold {}/{} - Epoch {}/{} (elapsed time: {:.0f}m {:.0f}s)'.format(current_fold_idx +1, k, epoch + 1, epochs, epoch_time_elapsed // 60, epoch_time_elapsed % 60))
-
-        # reset model weights
-        model.load_state_dict(untrained_model_weights)
-
-        
-        time_elapsed = time.time() - fold_start_time
-        print()
-        logger.info('\n  Fold {} Training complete in {:.0f}m {:.0f}s'.format(current_fold_idx+1, time_elapsed // 60, time_elapsed % 60))
-        logger.info('  Fold {} Best val Acc: {:4f}'.format(current_fold_idx+1, fold_best_acc))
-        print('-' * 10)
+    return model, accuracy/batch_count, loss/batch_count
 
 
-    print()
-    time_elapsed = time.time() - since
-    logger.info('\nTraining complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    # Get average curves
-    avg_train_acc = np.zeros(epochs)
-    avg_train_loss = np.zeros(epochs)
-    avg_eval_acc = np.zeros(epochs)
-    avg_eval_loss= np.zeros(epochs)
-    for epoch in range(epochs):
-        avg_train_acc[epoch] = statistics.mean(train_acc_hist[epoch])
-        avg_train_loss[epoch] = statistics.mean(train_loss_hist[epoch])
-        avg_eval_acc[epoch] = statistics.mean(eval_acc_hist[epoch])
-        avg_eval_loss[epoch] = statistics.mean(eval_loss_hist[epoch])
+def train(model: nn.Module,
+          dataset: ImageDataset,
+          train: list,
+          eval: list,
+          epochs: int,
+          optimizer=optim.SGD,
+          weight_decay: float = 0,
+          learning_rate: float = 0.1,
+          error_fn=nn.MSELoss(),
+          plot_acc=True,
+          plot_loss=True,
+          use_gpu=False,
+          max_batch_size=0,
+          learning_rate_drop=0,
+          learning_rate_drop_step_size=0,
+          is_notebook_env=False,
+          log_filename: str = None,
+          log: logging.Logger = None):
+    """
+    Trains a neural network
 
-    logger.debug("\nSUMMARY:\n")
-    logger.info('Best accuracy: {:4f}'.format(best_acc))
-    logger.info('Best loss: {:4f}\n'.format(best_loss))
-    logger.debug(f"Avg. training loss per epoch:\n{avg_train_loss}\n")
-    logger.debug(f"Avg. training accuracy per epoch:\n{avg_train_acc}\n")
-    logger.debug(f"\nAvg. evaluation loss per epoch:\n{avg_eval_loss}\n")
-    logger.debug(f"Avg. evaluation accuracy per epoch:\n{avg_eval_acc}\n")
+    Parameters
+    ---
+    model : torch.nn.Module
+        Neural network model to train
+    dataset: ImageDataset
+        Dataset to be used as a reference for the images
+    train : list[ImageDatasetEntry]
+        List of ImageDatasetEntry used for the training process
+    eval : list[ImageDatasetEntry]
+        List of ImageDatasetEntry used for the evaluation process
+    epochs : int
+        Number of iterations for the training
+    optimizer : torch.optim.Optimizer, optional
+        Function used to calculate the backpropagation on training phase (default
+        is SGD, also known as stochastic gradient descent)
+    weight_decay : float, option
+        Decay multiplier to be applied to weight adjustments on the optimization. 
+        If 0, no decay will be considered (default is 0)
+    learning_rate : float, optional
+        Learning rate used to calculate the adjustments on backpropagation (default
+        is 0.1)
+    error_fn : torch.nn error function, optional
+        Function used to obtain the error parameters on the processing, used to
+        acquire the data necessary for the adjustments (default is MSE, also known
+        as mean square error).
+    plot_acc : bool, optional
+        Whether or not to plot the accuracy chart after the training (default is True)
+    plot_loss : bool, optional
+        Whether or not to plot the loss chart after the training (default is True)
+    use_gpu : bool, optional
+        Whether or not to use the GPU, if available, on training (default is False)
+    max_batch_size : int, optional
+            Maximum size of the batches processed (default is 0 meaning there is no limit)
+    learning_rate_drop: float, optional
+        Multiplier to reduce learning rate afte a given number of epochs. If 0 there
+        will not be a drop on the learning rate (default is 0).
+    learning_rate_drop_step_size : int, optional 
+        Number of steps between drops on the learning rate. If 0 there will not be a
+            drop on the learning rate (default is 0).
+    is_notebook_env : bool, optional
+        Wheter to use python notebook specific functions
+    Returns
+    ---
+    tuple[torch.Module, ModelLearningSummary]
+        Respectively the trained neural network, a history with it's accuracy, it's loss, it's 
+        history of accuracy on training, it's history of loss on training, it's 
+        history of accuracy on evaluation, it's history of loss on evaluation
+
+    """
+
+    # setup environment usage
+    can_use_gpu = use_gpu and torch.cuda.is_available()
+    progress_bar = tqdm_notebook if is_notebook_env else tqdm
+    device = torch.device("cuda:0" if can_use_gpu else "cpu")
+    training_model = model.to(device)
+
+    training_log = log
+    if (log == None and log_filename != None):
+        training_log = create_logger(log_filename)
+        training_log.setLevel(logging.DEBUG)
+
+    # start best weights as empty
+    best_weights = copy_weights(training_model)
+
+    # Start epoch history track
+    history = ModelLearningSummary(epochs)
+
+    # get folds for training and evaluating
+    eval_labels = [dataset.get_expected_tensor(img) for img in eval]
+    train_labels = [dataset.get_expected_tensor(img) for img in train]
+
+    # define optimization function
+    optimization_fn = optimizer(training_model.parameters(
+    ), lr=learning_rate, weight_decay=weight_decay)
+
+    # define decay on learning rate if any is required
+    learning_rate_drop_fn = None
+    if (learning_rate_drop_step_size > 0 and learning_rate_drop != 0):
+        learning_rate_drop_fn = optim.lr_scheduler.StepLR(
+            optimization_fn, step_size=learning_rate_drop_step_size, gamma=learning_rate_drop)
+
+    progress = progress_bar(range(epochs))
+    for epoch in progress:
+        write_log(f"\n  Epoch {epoch+1}", training_log, False)
+
+        # Training phase
+        progress.set_description("Learning")
+
+        training_model, accuracy, loss = process_input(training_model,
+                                                       train,
+                                                       train_labels,
+                                                       error_fn,
+                                                       optimization_fn=optimization_fn,
+                                                       device=device,
+                                                       max_batch_size=max_batch_size,
+                                                       learn=True)
+
+        write_log(
+            f'    Training - Loss: {loss:.4f} Acc: {accuracy:.4f}', training_log, False)
+        # Save data to training history
+        history.training.accuracy[epoch] = accuracy
+        history.training.loss[epoch] = loss
+
+        # Evaluation phase
+        progress.set_description("Evaluating")
+        _, accuracy, loss = process_input(training_model,
+                                          eval,
+                                          eval_labels,
+                                          error_fn,
+                                          optimization_fn=optimization_fn,
+                                          device=device,
+                                          max_batch_size=max_batch_size,
+                                          learn=False)
+
+        if accuracy > history.best_accuracy:
+            history.best_accuracy = accuracy
+            history.best_loss = loss
+            best_weights = copy_weights(training_model)
+
+        write_log(f'    Evaluation - Loss: {loss:.4f} Acc: {accuracy:.4f}',
+                  training_log,
+                  False)
+        # Save data to eval history
+        history.eval.accuracy[epoch] = accuracy
+        history.eval.loss[epoch] = loss
+
+        if (learning_rate_drop_fn != None):
+            learning_rate_drop_fn.step()
+
+    write_log(f'\n  [Training Complete] Best Loss: {history.best_loss:.4f} Best Acc: {history.best_accuracy:.4f}',
+              training_log,
+              False)
 
     # Plot graphs
     if plot_acc:
-        fig, ax = plt.subplots()      
-        ax.plot(avg_train_acc, 'r', label="Average training acurracy")
-        ax.plot(avg_eval_acc, 'b', label="Average evaluation accuracy")
+        _, ax = plt.subplots()
+        ax.plot(history.training.accuracy, 'r',
+                label="Average training acurracy")
+        ax.plot(history.eval.accuracy, 'b',
+                label="Average evaluation accuracy")
         ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Accuracy")
         ax.legend()
         plt.show()
-    
+
     if plot_loss:
-        fig, ax = plt.subplots()
-        ax.plot(avg_train_loss, 'r', label="Average training loss")
-        ax.plot(avg_eval_loss, 'b', label="Average evaluation loss")
+        _, ax = plt.subplots()
+        ax.plot(history.training.loss, 'r', label="Average training loss")
+        ax.plot(history.training.loss, 'b', label="Average evaluation loss")
         ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Loss")
         ax.legend()
         plt.show()
 
     # load best model weights
-    model.load_state_dict(best_model_weights)
+    training_model.load_state_dict(best_weights)
 
-    return model
+    return training_model, history
+
+
+def k_fold_training(model: nn.Module,
+                    dataset: ImageDataset,
+                    epochs: int,
+                    k: int = 3,
+                    optimizer=optim.SGD,
+                    weight_decay: float = 0,
+                    learning_rate: float = 0.1,
+                    error_fn=nn.MSELoss(),
+                    plot_acc=True,
+                    plot_loss=True,
+                    max_batch_size=0,
+                    use_gpu=False,
+                    learning_rate_drop=0,
+                    learning_rate_drop_step_size=0,
+                    log_filename: str = None,
+                    is_notebook_env: bool = False):
+    """
+    Trains a neural network using k-fold cross validation
+
+    Parameters
+    ---
+    model : torch.nn.Module
+        Neural network model to train
+    dataset : Dataset.ImageDataset
+        Dataset of images to be used on the training
+    epochs : int
+        Number of iterations for the training
+    k : int, optional
+        Number of folds used on cross validation (default is 3)
+    optimizer : torch.optim.Optimizer, optional
+        Function used to calculate the backpropagation on training phase (default
+        is SGD, also known as stochastic gradient descent)
+    weight_decay : float, option
+        Decay multiplier to be applied to weight adjustments on the optimization. 
+        If 0, no decay will be considered (default is 0)
+    learning_rate : float, optional
+        Learning rate used to calculate the adjustments on backpropagation (default
+        is 0.1)
+    error_fn : torch.nn error function, optional
+        Function used to obtain the error parameters on the processing, used to
+        acquire the data necessary for the adjustments (default is MSE, also known
+        as mean square error).
+    plot_acc : bool, optional
+        Whether or not to plot the accuracy chart after the training (default is True)
+    plot_loss : bool, optional
+        Whether or not to plot the loss chart after the training (default is True)
+    use_gpu : bool, optional
+        Whether or not to use the GPU, if available, on training (default is False)
+    max_batch_size : int, optional
+            Maximum size of the batches processed (default is 0 meaning there is no limit)
+    learning_rate_drop: float, optional
+        Multiplier to reduce learning rate afte a given number of epochs. If 0 there
+        will not be a drop on the learning rate (default is 0).
+    learning_rate_drop_step_size : int, optional 
+        Number of steps between drops on the learning rate. If 0 there will not be a
+            drop on the learning rate (default is 0).
+    is_notebook_env : bool, optional
+        Wheter to use python notebook specific functions
+
+    Returns
+    ---
+    torch.Module, CrossValidationLearningSummary
+        The best trained neural network from all the folds and a summary for its training
+    """
+
+    training_log = None
+    if (log_filename != None):
+        training_log = create_logger(log_filename)
+        training_log.setLevel(logging.DEBUG)
+
+    # save inital state to recover between folds
+    untrained = copy_weights(model)
+
+    # setup initial best
+    best_weights = copy_weights(model)
+
+    # Start epoch history track
+    history = CrossValidationLearningSummary(epochs)
+
+    # create folds from data
+    folds = create_folds(dataset, k)
+
+    write_log(f"Got {len(folds)} folds with {len(folds[0])} samples",
+              training_log)
+
+    training_start_timestamp = time.time()
+
+    # train each fold
+    for current_fold_idx in range(len(folds)):
+        write_log(f"\nProcessing Fold {current_fold_idx + 1}", training_log)
+        # get training and evaluating data from fold list
+        eval_input, training_input = get_fold_groups(current_fold_idx, folds)
+        fold_start_timestamp = time.time()
+        # train fold
+        fold_best_model, fold_history = train(
+            model=model,
+            dataset=dataset,
+            train=training_input,
+            eval=eval_input,
+            epochs=epochs,
+            optimizer=optimizer,
+            weight_decay=weight_decay,
+            learning_rate=learning_rate,
+            error_fn=error_fn,
+            max_batch_size=max_batch_size,
+            use_gpu=use_gpu,
+            plot_loss=False,
+            plot_acc=False,
+            learning_rate_drop=learning_rate_drop,
+            learning_rate_drop_step_size=learning_rate_drop_step_size,
+            log = training_log,
+            is_notebook_env=is_notebook_env
+        )
+        fold_duration = time.time() - fold_start_timestamp
+
+        write_log(f'\n  Fold {current_fold_idx+1} Training complete in {(fold_duration // 60):.0f}m {(fold_duration % 60):.0f}s',
+                  training_log,
+                  False)
+        # if is better than the previous, store it
+        if fold_history.best_accuracy > history.best_accuracy:
+            history.best_accuracy = fold_history.best_accuracy
+            history.best_loss = fold_history.best_loss
+            best_weights = copy_weights(fold_best_model)
+
+        # keep track of the performance
+        history.folds.append(fold_history)
+
+        # reset model weights
+        model.load_state_dict(untrained)
+
+    training_duration = time.time() - training_start_timestamp
+
+    write_log(f'\nTraining complete in {(training_duration // 60):.0f}m {(training_duration % 60):.0f}s', training_log, False)
+
+    # summarize the performance
+    summary = history.get_average_performance()
+
+    # Plot graphs
+    if plot_acc:
+        _, ax = plt.subplots()
+        ax.plot(summary.training.accuracy, 'r',
+                label="Average training acurracy")
+        ax.plot(summary.eval.accuracy, 'b',
+                label="Average evaluation accuracy")
+        ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Accuracy")
+        ax.legend()
+        plt.show()
+
+    if plot_loss:
+        _, ax = plt.subplots()
+        ax.plot(summary.training.loss, 'r', label="Average training loss")
+        ax.plot(summary.eval.loss, 'b', label="Average evaluation loss")
+        ax.set(xlabel="Epoch", ylabel="Accuracy", title="Traning Loss")
+        ax.legend()
+        plt.show()
+
+    # load best model weights
+    model.load_state_dict(best_weights)
+
+    return model, history

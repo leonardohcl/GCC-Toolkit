@@ -1,20 +1,48 @@
+from copy import deepcopy
 import os
 import torch
 import pandas as pd
 import numpy as np
 import FileHandling
 from torch.utils.data import Dataset
-from torchvision import transforms
+
+
+class ImageDatasetEntry:
+    def __init__(self, root_dir: str, filename: str, class_id: int, transform: list = None) -> None:
+        self._filename = filename
+        self._root_dir = root_dir
+        self._class_id = class_id
+        self._transform = transform
+
+    @property
+    def full_path(self):
+        return os.path.join(self._root_dir, self._filename)
+
+    @property
+    def filename(self):
+        return self._filename
+
+    @property
+    def class_id(self):
+        return self._class_id
+
+    def get_image(self):
+        return FileHandling.readImage(self.full_path)
+
+    def get_tensor(self):
+        image = self.get_image()
+        return self._transform(image) if self._transform else image
+
 
 class ImageDataset(Dataset):
     """Image dataset"""
 
-    def __init__(self, csv_file, root_dir, class_count, transform=None):
+    def __init__(self, csv_file: str, root_dir: str, classes: list, transform=None):
         """
         Args:
             csv_file (string): Path to the csv file with all images names and classes.
             root_dir (string): Directory with all the images.
-            class_count(int): Amount of classes in the dataset
+            classes(list): List of classes in the dataset
             transform (callable, optional): Optional transform to be applied
                 on a sample.
             loadToGpu (bool): If should load image data to GPU, in case of availability
@@ -23,90 +51,30 @@ class ImageDataset(Dataset):
             Classes are expected to be sequential numeric ints to make possible to emulate the output expected in form of an array.
             Csv files with the listing ust not contain headers and each entry must be filename,class separated by a line break
         """
-        self.images = pd.read_csv(csv_file, header=None)
-        self.class_count = class_count
-        self.root_dir = root_dir
-        self.transform = transform
+        image_list = pd.read_csv(csv_file, header=None)
+        self._classes = classes
+        self._class_count = len(classes)
+        self._transform = transform
+        self._root_dir = root_dir
+        self.images = [ImageDatasetEntry(root_dir, row[0], row[1], self._transform)
+                       for _, row in image_list.iterrows()]
 
     def __len__(self):
         return len(self.images)
 
-    def __getitem__(self, ind:int):
-        if torch.is_tensor(ind):
-            ind = ind.tolist()
-        
-        image = self.getRawImage(ind)
+    def __getitem__(self, ind: int):
+        return self.images[ind]
 
-        if self.transform:
-            image = self.transform(image)
-
-        return image
-
-    def getRawImage(self, ind:int):
-        img_path =  self.getFilepath(ind) 
-        return FileHandling.readImage(img_path)
-
-    def getFilename(self, ind:int):
-        """Get file name from image at given index.
-        Args:
-            ind(int): Image index"""
-        return self.images.iloc[ind, 0]
-
-    def getFilepath(self, ind:int):
-        """Get file path from image at given index.
-        Args:
-            ind(int): Image index"""
-        return os.path.join(self.root_dir, self.getFilename(ind))
-
-    def getClass(self, ind:int):
-        """Get class number from image at given index.
-        Args:
-            ind(int): Image index
-        """
-        return self.images.iloc[ind, 1]
-
-    def getExpected(self, ind:int):
+    def get_expected_tensor(self, entry) -> torch.Tensor:
         """Get expected output from a network of image at given index.
 
         Args:
-            ind(int): Image index
+            ind(ImageDatasetEntry | int): Image entry or image's index
         Output:
             Tensor with size ([class_count]), filled with zeros except to the index that matches the image class
         """
-        aux = np.zeros(self.class_count)
-        classInd = self.getClass(ind)
-        aux[classInd] = 1
-        return torch.tensor(aux, dtype=torch.float)
-
-    def getChannelsMeanAndStd(self):
-        """Get means and standard deviations for each channel of the entire dataset.
-                
-        IMPORTANT: 
-            Dataset content must be a Tensor ou have a transform that converts it's contet to Tensor type for this to work
-        
-        Output:
-            means(list), std(list): lists with calculated means and standard deviations for each channel in the whole dataset 
-        """
-        R_means = torch.zeros(len(self))
-        G_means = torch.zeros(len(self))
-        B_means = torch.zeros(len(self))
-        R_stds = torch.zeros(len(self))
-        G_stds = torch.zeros(len(self))
-        B_stds = torch.zeros(len(self))
-
-        for img in range(len(self)):
-            R_means[img] = torch.mean(self[img][0])
-            G_means[img] = torch.mean(self[img][1])
-            B_means[img] = torch.mean(self[img][2])
-            R_stds[img] = torch.mean(self[img][0])
-            G_stds[img] = torch.mean(self[img][1])
-            B_stds[img] = torch.mean(self[img][2])
-
-        R_mean = float(torch.mean(R_means))
-        G_mean = float(torch.mean(G_means))
-        B_mean = float(torch.mean(B_means))
-        R_std = float(torch.std(R_stds))
-        G_std = float(torch.std(G_stds))
-        B_std = float(torch.std(B_stds))
-
-        return [R_mean, G_mean, B_mean], [R_std, G_std, B_std]
+        expected_vector = np.zeros(self._class_count)
+        image = entry if type(entry) == ImageDatasetEntry else self[entry]
+        class_idx = self._classes.index(image.class_id)
+        expected_vector[class_idx] = 1.0
+        return torch.tensor(expected_vector, dtype=torch.float)
