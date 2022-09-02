@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from Dataset import ImageDataset
-import CNN
+from MachineLearning import Trainer
 
 # 0. Define important variables
 # Input detais
@@ -63,7 +63,7 @@ dataset = ImageDataset(
 )
 
 # 6. Call the training function
-trained_model, learning_history = CNN.k_fold_training(
+trained_model, learning_history = Trainer.k_fold_training(
     model,
     dataset,
     k=NUMBER_OF_FOLDS,

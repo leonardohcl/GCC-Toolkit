@@ -20,7 +20,7 @@ This files holds some of the general functions used all over the scripts, they a
 
   
 
--  [CNN.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/CNN.py): Functions to manage CNNs like training routines;
+-  [MachineLearning.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/MachineLearning.py): Classes for machine learning algorithms like training routines;
 
   
 
