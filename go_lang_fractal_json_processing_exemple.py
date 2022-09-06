@@ -90,8 +90,8 @@ for idx in range(len(IMAGE_LIST)):
         if r_probs == None:
             raise Exception(
                 "Probability matrix didn't have the values for r={} which is between the specified interval {} <= r <= {}".format(r, MIN_R, MAX_R))
-        r_lacunarity = frac.LacunarityFromProabilityMatrix([r_probs], r, r)[0]
-        r_fractal_dimension = frac.FractalDimensionFromProabilityMatrix([r_probs], r, r)[
+        r_lacunarity = frac.lacunarity([r_probs], r, r)[0]
+        r_fractal_dimension = frac.fractal_dimension([r_probs], r, r)[
             0]
         lacunarity_curve.append(r_lacunarity)
         fractal_dimensions.append(r_fractal_dimension)
