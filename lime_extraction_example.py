@@ -2,7 +2,7 @@ import os
 import torch
 import numpy as np
 from Dataset import ImageDataset
-import FileHandling as fh
+from File import ImageFile
 from lime import lime_image
 import torch.nn.functional as F
 from PIL import Image
@@ -100,7 +100,7 @@ for image_index in range(img_count):
 
     # save the LIME image
     filename = filename.split('.')[0]
-    fh.saveImage(lime_img, OUTPUT_FOLDER, filename)
+    ImageFile.save(lime_img, OUTPUT_FOLDER, filename)
 
     if (torch.cuda.is_available()):
         torch.cuda.empty_cache()  # It's important to clear the cuda memory of unused data after getting a LIME from an image. This algorithms takes a lot of the memory available and if processing several images there probably would be an out of memory error if this was not done

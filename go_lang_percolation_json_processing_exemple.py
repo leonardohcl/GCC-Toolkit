@@ -1,8 +1,7 @@
 import pandas as pd
-import Fractal as frac
-import FileHandling as fh
+from File import Arff
 import GoLangJson
-import Curve
+from Curve import Curve
 
 # 0. Define important variables
 # Input details
@@ -125,17 +124,17 @@ for idx in range(len(IMAGE_LIST)):
         g.append(avg_largest_cluster_size)
         h.append(perc)
 
-    p_area = Curve.Area(R_RANGE, p)
-    p_skew = Curve.Skweness(p)
-    p_area_ratio = Curve.AreaRatio(R_RANGE, p)
+    p_area = Curve.area(R_RANGE, p)
+    p_skew = Curve.skweness(p)
+    p_area_ratio = Curve.area_ratio(R_RANGE, p)
     p_max = max(p)
-    g_area = Curve.Area(R_RANGE, g)
-    g_skew = Curve.Skweness(g)
-    g_area_ratio = Curve.AreaRatio(R_RANGE, g)
+    g_area = Curve.area(R_RANGE, g)
+    g_skew = Curve.skweness(g)
+    g_area_ratio = Curve.area_ratio(R_RANGE, g)
     g_max = max(g)
-    h_area = Curve.Area(R_RANGE, h)
-    h_skew = Curve.Skweness(h)
-    h_area_ratio = Curve.AreaRatio(R_RANGE, h)
+    h_area = Curve.area(R_RANGE, h)
+    h_skew = Curve.skweness(h)
+    h_area_ratio = Curve.area_ratio(R_RANGE, h)
     h_max = max(h)
 
     features = p + g + h + [p_area, p_skew, p_area_ratio, p_max,
@@ -145,5 +144,8 @@ for idx in range(len(IMAGE_LIST)):
     ARFF_CONTENT.append(features)
 
 # 3. Create .arff file
-arff = fh.createArffFile(ARFF_NAME, ARFF_CONTENT,
-                         ARFF_ATTRIBUTES, ARFF_CLASSES)
+arff = Arff(relation=ARFF_NAME,
+            entries=ARFF_CONTENT,
+            attrs=ARFF_ATTRIBUTES, 
+            classes=ARFF_CLASSES)
+arff.save(ARFF_NAME)

@@ -1,7 +1,7 @@
 import torch
 import time
 import numpy as np
-import FileHandling as fh
+import File as fh
 from Dataset import ImageDataset
 from torchvision import models, transforms
 
@@ -90,7 +90,7 @@ for idx in range(img_count):
 names = ["avgpool{}".format(i) for i in range(1, output_size+1)]
 
 # 8. Write arff file
-fh.createArffFile(OUTPUT_NAME, output, names, CLASSES)
+fh.save(OUTPUT_NAME, output, names, CLASSES)
 
 time_elapsed = time.time() - start
 print('Extraction complete in {:.0f}m {:.0f}s'.format(

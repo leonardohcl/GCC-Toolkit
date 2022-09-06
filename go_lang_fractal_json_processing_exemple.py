@@ -1,8 +1,8 @@
 import pandas as pd
 import Fractal as frac
-import FileHandling as fh
+from File import Arff
 import GoLangJson
-import Curve
+from Curve import Curve
 
 # 0. Define important variables
 # Input details
@@ -95,14 +95,17 @@ for idx in range(len(IMAGE_LIST)):
             0]
         lacunarity_curve.append(r_lacunarity)
         fractal_dimensions.append(r_fractal_dimension)
-    area = Curve.Area(R_RANGE, lacunarity_curve)
-    skew = Curve.Skweness(lacunarity_curve)
-    area_ratio = Curve.AreaRatio(R_RANGE, lacunarity_curve)
+    area = Curve.area(R_RANGE, lacunarity_curve)
+    skew = Curve.skweness(lacunarity_curve)
+    area_ratio = Curve.area_ratio(R_RANGE, lacunarity_curve)
     max_lacunarity = max(lacunarity_curve)
     features = lacunarity_curve + fractal_dimensions + \
         [area, skew, area_ratio, max_lacunarity, image_class]
     ARFF_CONTENT.append(features)
 
 # 3. Create .arff file
-arff = fh.createArffFile(ARFF_NAME, ARFF_CONTENT,
-                         ARFF_ATTRIBUTES, ARFF_CLASSES)
+arff = Arff(relation=ARFF_NAME,
+            entries=ARFF_CONTENT,
+            attrs=ARFF_ATTRIBUTES, 
+            classes=ARFF_CLASSES)
+arff.save(ARFF_NAME)

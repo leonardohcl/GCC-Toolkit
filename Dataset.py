@@ -1,9 +1,8 @@
-from copy import deepcopy
 import os
 import torch
 import pandas as pd
 import numpy as np
-import FileHandling
+from File import ImageFile
 from torch.utils.data import Dataset
 
 
@@ -27,12 +26,11 @@ class ImageDatasetEntry:
         return self._class_id
 
     def get_image(self):
-        return FileHandling.readImage(self.full_path)
+        return ImageFile.read(self.full_path)
 
     def get_tensor(self):
         image = self.get_image()
         return self._transform(image) if self._transform else image
-
 
 class ImageDataset(Dataset):
     """Image dataset"""

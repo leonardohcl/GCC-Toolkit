@@ -2,7 +2,7 @@ import os
 import torch
 from Dataset import ImageDataset
 import CAMHelpers as cam
-import FileHandling as fh
+from File import ImageFile
 from torchvision import models, transforms
 from pytorch_grad_cam import GradCAM
 
@@ -96,26 +96,26 @@ for idx in range(img_count):
     output_colormap_img = cam.createImage(output, "jet")
 
     # this gets the original image, used when overlaying
-    original_img = fh.readImage(dataset.get_file_path(idx))
+    original_img = ImageFile.read(dataset.get_file_path(idx))
     filename = filename.split(".")[0]
     # Save it
     if SAVE_BW_CAM:
         target_folder = OUTPUT_FOLDER if output_types == 1 else BW_FOLDER_NAME
-        fh.saveImage(output_img, target_folder, filename)
+        ImageFile.save(output_img, target_folder, filename)
 
     if SAVE_BW_OVERLAY_CAM:
         target_folder = OUTPUT_FOLDER if output_types == 1 else BW_OVERLAY_FOLDER_NAME
-        fh.saveImage(cam.multiplyCAM(original_img, output_img),
+        ImageFile.save(cam.multiplyCAM(original_img, output_img),
                      target_folder,
                      filename)
 
     if SAVE_JET_COLORMAP_CAM:
         target_folder = OUTPUT_FOLDER if output_types == 1 else JET_FOLDER_NAME
-        fh.saveImage(output_colormap_img, target_folder, filename)
+        ImageFile.save(output_colormap_img, target_folder, filename)
 
     if SAVE_JET_COLORMAP_OVERLAY_CAM:
         target_folder = OUTPUT_FOLDER if output_types == 1 else JET_OVERLAY_FOLDER_NAME
-        fh.saveImage(cam.overlayCAM(original_img,
+        ImageFile.save(cam.overlayCAM(original_img,
                                     output_colormap_img),
                      target_folder,
                      filename)
