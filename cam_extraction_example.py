@@ -5,12 +5,14 @@ import CAMHelpers as cam
 from File import ImageFile
 from torchvision import models, transforms
 from pytorch_grad_cam import GradCAM
+from tqdm import tqdm
 
 # 0. Define important variables
 # Input details
 IMAGE_CSV_PATH = "sample/sample-images.csv"
 IMAGE_FOLDER_PATH = "sample"
 CLASSES = [0, 1]
+USE_CUDA = True
 
 # Output details
 OUTPUT_FOLDER = "sample-CAM"
@@ -64,7 +66,7 @@ target_layer = model.features[-1]
 # 1.2. Create CAM generator
 cam_generator = GradCAM(model=model,
                         target_layers=[target_layer],
-                        use_cuda=torch.cuda.is_available())
+                        use_cuda=USE_CUDA and torch.cuda.is_available())
 
 # 2. Define the dataset
 # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
@@ -80,9 +82,10 @@ dataset = ImageDataset(IMAGE_CSV_PATH,
 img_count = len(dataset)
 
 # 3. Process the dataset
-for idx in range(img_count):
+progress_bar = tqdm(range(img_count))
+for idx in progress_bar:
     filename = dataset[idx].filename
-    print("processing ({}/{})... {}".format(idx + 1, img_count, filename))
+    progress_bar.set_description(f"now processing {filename}")
 
     # Get image input
     img = dataset[idx].get_tensor().unsqueeze(0)
@@ -96,7 +99,7 @@ for idx in range(img_count):
     output_colormap_img = cam.createImage(output, "jet")
 
     # this gets the original image, used when overlaying
-    original_img = ImageFile.read(dataset.get_file_path(idx))
+    original_img = ImageFile.read(dataset[idx].full_path)
     filename = filename.split(".")[0]
     # Save it
     if SAVE_BW_CAM:
