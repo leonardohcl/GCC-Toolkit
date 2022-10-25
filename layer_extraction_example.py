@@ -1,27 +1,35 @@
 import torch
-import time
 import numpy as np
-import File as fh
+from File import Arff
 from Dataset import ImageDataset
 from torchvision import models, transforms
+from tqdm import tqdm
 
 # 0. Define important variables
 IMAGE_CSV_PATH = "sample/sample-images.csv"
 IMAGE_FOLDER_PATH = "sample"
 CLASSES = [0, 1]
 OUTPUT_NAME = "sample-extraction-data"
+HOLDER_NAME = 'deep_feats'
+USE_GPU = True
 
 # 1. Create dictionary to hold outputs
-output_holder = {}
+data_holder = {}
 
-# 2. Define function to send output to holder with a specific name
+# 2. Define function to send input/output to holder with a specific name
+def get_input(name):
+    def hook(model, input, output):
+        aux_array = input[0].cpu().detach().numpy()
+        aux_array = aux_array.flatten()
+        data_holder[name] = aux_array.tolist()
 
+    return hook
 
-def get_output(layer_name):
+def get_output(name):
     def hook(model, input, output):
         aux_array = output.cpu().detach().numpy()
         aux_array = aux_array.flatten()
-        output_holder[layer_name] = aux_array.tolist()
+        data_holder[name] = aux_array.tolist()
 
     return hook
 
@@ -45,31 +53,38 @@ net = models.resnet50(pretrained=True)
 net.eval()  # set it to evaluation mode
 
 # 4.1. If GPU is available, send cnn to it
-if torch.cuda.is_available():
+if USE_GPU and torch.cuda.is_available():
     net.cuda()
 
-output_size = net.fc.in_features  # get output size
+# For densenet121 use
+# output_size = net.classifier.in_features # or 1024
+# For efficientnet_b2 use # or 1408
+# output_size = net.classifier[1].in_features 
+# For inception_v3 and resnet50 use 
+output_size = net.fc.in_features  # or 2048
 # For vgg19 use
-# output_size = net.classifier[6].in_features
+# output_size = net.classifier[6].in_features # or 4096
 
 # 5. Register hook to desired layer to hold it's output
-net.avgpool.register_forward_hook(get_output("avg_pool"))
+# For densenet121 use
+# net.classifier.register_forward_hook(get_input(HOLDER_NAME))
+# For efficientnet_b2, inception_v3 and resnet50 use
+net.avgpool.register_forward_hook(get_output(HOLDER_NAME))
 # For vgg19 use
-# net.classifier[5].register_forward_hook(getOutput("fc"))
+# net.classifier[5].register_forward_hook(get_output(HOLDER_NAME))
 
 
 # 6. Process each image and get the desired layers output
 # create placeholder output list
 output = np.zeros((img_count, output_size + 1)).tolist()
-start = time.time()
-for idx in range(img_count):
-    print("processing ({}/{}): {}".format(idx +
-          1, img_count, dataset[idx].filename))
+progress = tqdm(range(img_count))
+for idx in progress:
+    progress.set_description(dataset[idx].filename)
 
     # create fake batch with single input
     img = dataset[idx].get_tensor().unsqueeze(0)
     # if cuda is available send input to it
-    if torch.cuda.is_available():
+    if USE_GPU and torch.cuda.is_available():
         img = img.cuda()
 
     # give input to cnn
@@ -79,7 +94,7 @@ for idx in range(img_count):
         torch.cuda.empty_cache()
 
     # get all the data collected in the holder
-    img_output = output_holder["avg_pool"]
+    img_output = data_holder[HOLDER_NAME]
     # append image class to the end of the output
     img_output.append(dataset[idx].class_id)
 
@@ -90,8 +105,8 @@ for idx in range(img_count):
 names = ["avgpool{}".format(i) for i in range(1, output_size+1)]
 
 # 8. Write arff file
-fh.save(OUTPUT_NAME, output, names, CLASSES)
-
-time_elapsed = time.time() - start
-print('Extraction complete in {:.0f}m {:.0f}s'.format(
-    time_elapsed // 60, time_elapsed % 60))
+data = Arff(relation=OUTPUT_NAME,
+            entries=output,
+            classes=CLASSES,
+            attrs=names, attr_types=['numeric' for _ in names])
+data.save(OUTPUT_NAME)

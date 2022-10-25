@@ -2,6 +2,7 @@ import pandas as pd
 from File import Arff
 import GoLangJson
 from Curve import Curve
+from tqdm import tqdm
 
 # 0. Define important variables
 # Input details
@@ -94,10 +95,14 @@ IMAGE_LIST = pd.read_csv(IMAGE_CSV_PATH, header=None)
 PERC_DATA = GoLangJson.GoLangPercolation(PERCOLATION_JSON_PATH)
 
 # 2. Iterate through images to calculate the fractal properties
-for idx in range(len(IMAGE_LIST)):
+progress = tqdm(range(len(IMAGE_LIST)))
+for idx in progress:
     # Get image name and class
     image_name = IMAGE_LIST.iloc[idx, 0]
     image_class = IMAGE_LIST.iloc[idx, 1]
+
+    progress.set_description(image_name)
+
     # Get percolation data
     data = PERC_DATA.getPercolationData(image_name)
     # If didn't find it, stop the process

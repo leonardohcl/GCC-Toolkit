@@ -1,8 +1,9 @@
 import pandas as pd
-import Fractal as frac
+from Fractal import GlidingBox
 from File import Arff
 import GoLangJson
 from Curve import Curve
+from tqdm import tqdm
 
 # 0. Define important variables
 # Input details
@@ -66,10 +67,14 @@ IMAGE_LIST = pd.read_csv(IMAGE_CSV_PATH, header=None)
 PROB_MATRIX = GoLangJson.GoLangProbabiblityMatrix(PROB_MATRIX_JSON_PATH)
 
 # 2. Iterate through images to calculate the fractal properties
-for idx in range(len(IMAGE_LIST)):
+progress = tqdm(range(len(IMAGE_LIST)))
+for idx in progress:
     # Get image name and class
     image_name = IMAGE_LIST.iloc[idx, 0]
     image_class = IMAGE_LIST.iloc[idx, 1]
+
+    progress.set_description(image_name)
+    
     # Get prabability matrix
     matrix = PROB_MATRIX.getImageMatrix(image_name)
     # If didn't find it, stop the process
@@ -90,8 +95,8 @@ for idx in range(len(IMAGE_LIST)):
         if r_probs == None:
             raise Exception(
                 "Probability matrix didn't have the values for r={} which is between the specified interval {} <= r <= {}".format(r, MIN_R, MAX_R))
-        r_lacunarity = frac.lacunarity([r_probs], r, r)[0]
-        r_fractal_dimension = frac.fractal_dimension([r_probs], r, r)[
+        r_lacunarity = GlidingBox.lacunarity([r_probs], r, r)[0]
+        r_fractal_dimension = GlidingBox.fractal_dimension([r_probs], r, r)[
             0]
         lacunarity_curve.append(r_lacunarity)
         fractal_dimensions.append(r_fractal_dimension)

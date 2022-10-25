@@ -49,12 +49,12 @@ class Arff:
     def __len__(self):
         return len(self.entries)
 
-    def _classes_are_the_same(list1: list, list2: list):
-        if len(list1) != len(list2):
+    def _classes_match(self, class_list: list):
+        if len(self.classes) != len(class_list):
             return False
-        for class_id in list1:
+        for class_id in self.classes:
             try:
-                list2.index(class_id)
+                class_list.index(class_id)
             except:
                 return False
         return True
@@ -123,7 +123,10 @@ class Arff:
         if os.path.isfile(path) == False:
             raise Exception("File doesn't exist. path: {}".format(path))
 
-        obj = Arff()
+        arff_attrs = []
+        arff_attr_types = []
+        arff_entries = []
+        arff_classes = []        
 
         f = open(path, "r")
         line = f.readline()
@@ -139,41 +142,45 @@ class Arff:
 
             if reading_entries:
                 entries = line.split(",")
-                if len(entries) != (len(obj.attrs) + 1):
+                if len(entries) != (len(arff_attrs) + 1):
                     raise Exception(
                         "Found entry with more data than specified attributes!")
 
                 entry_list = []
-                for idx in range(len(obj.attr_types)):
-                    if obj.attr_types[idx].lower() == "numeric" or obj.attr_types[idx].lower() == "real":
+                for idx in range(len(arff_attr_types)):
+                    if arff_attr_types[idx].lower() == "numeric" or arff_attr_types[idx].lower() == "real":
                         entry_list.append(float(entries[idx]))
                     else:
                         entry_list.append(entries[idx])
 
                 # gets class at the end
-                entry_class = int(entries[-1])
-                if entry_class not in obj.classes:
+                try:
+                    entry_class = int(entries[-1])
+                except:
+                    entry_class = entries[-1]
+
+                if entry_class not in arff_classes:
                     raise Exception("Read entry with a class different from the ones especified. \nExpected: {}\nGot: {}".format(
-                        obj.classes, entry_class))
+                        arff_classes, entry_class))
                 entry_list.append(entry_class)
 
-                if len(obj) == 0:
-                    obj.entries = [entry_list]
-                else:
-                    obj.entries.append(entry_list)
+                arff_entries.append(entry_list)
             else:
                 if line.lower().startswith("@relation"):
                     splitted_line = line.split(" ")
-                    obj.relation = splitted_line[1].replace("'", "")
+                    relation = splitted_line[1].replace("'", "")
                 elif line.lower().startswith("@attribute"):
                     splitted_line = line.split(" ")
                     if splitted_line[1].lower() == 'class':
                         classes = splitted_line[2].replace(
                             "{", "").replace("}", "")
-                        obj.classes = [int(num) for num in classes.split(",")]
+                        try:
+                            arff_classes = [int(num) for num in classes.split(",")]
+                        except:
+                            arff_classes = classes.split(',')
                     else:
-                        obj.attrs.append(splitted_line[1])
-                        obj.attr_types.append(splitted_line[2])
+                        arff_attrs.append(splitted_line[1])
+                        arff_attr_types.append(splitted_line[2])
                 elif line.lower().startswith("@data"):
                     reading_entries = True
 
@@ -181,7 +188,7 @@ class Arff:
 
         f.close()
 
-        return obj
+        return Arff(relation, arff_attrs,arff_attr_types, arff_entries, arff_classes)
 
     def combine(self, reference_arff):
         """Add attributes from another arff into the current data
@@ -196,7 +203,7 @@ class Arff:
             raise Exception(
                 f"Can't combine arffs with different data length. Received {len(self)} and {len(reference_arff)}")
 
-        if self._classes_are_the_same(self.classes, reference_arff.classes) == False:
+        if self._classes_match(reference_arff.classes) == False:
             raise Exception("Can't combine arffs with different classes.")
 
         combined = Arff(relation=f"Merged_{self.relation}_and_{reference_arff.relation}",
@@ -233,7 +240,7 @@ class Arff:
             if (self.attr_types[idx] != reference_arff.attr_types[idx]):
                 raise Exception(f"Mismatching attribute types at column {idx}")
 
-        if self._classes_are_the_same(self.classes, reference_arff.classes) == False:
+        if self._classes_match(reference_arff.classes) == False:
             raise Exception("Can't combine arffs with different classes.")
 
         return Arff(relation=f"Concatenated_{self.relation}_and_{reference_arff.relation}",
