@@ -1,252 +1,380 @@
 [
-    {
-        "name": "class1.jpg",
-        "percolation_results": [
-            {
-                "average_cluster_count": 1.0021465996109835,
-                "average_biggest_cluster_area": 0.9914806118085366,
-                "percolation": 0.9898803161196489,
-                "kernel_size": 3
-            },
-            {
-                "average_cluster_count": 1.006362547836499,
-                "average_biggest_cluster_area": 0.9909025544103272,
-                "percolation": 0.9898677599605569,
-                "kernel_size": 5
-            },
-            {
-                "average_cluster_count": 1.0100342092069952,
-                "average_biggest_cluster_area": 0.9906405860583559,
-                "percolation": 0.9893464861836091,
-                "kernel_size": 7
-            },
-            {
-                "average_cluster_count": 1.0132260550023708,
-                "average_biggest_cluster_area": 0.9904269766842869,
-                "percolation": 0.9892084518729256,
-                "kernel_size": 9
-            },
-            {
-                "average_cluster_count": 1.0164862981470784,
-                "average_biggest_cluster_area": 0.9902185701515005,
-                "percolation": 0.9892285151015205,
-                "kernel_size": 11
-            },
-            {
-                "average_cluster_count": 1.019601857837152,
-                "average_biggest_cluster_area": 0.990010011742531,
-                "percolation": 0.9891291986880222,
-                "kernel_size": 13
-            },
-            {
-                "average_cluster_count": 1.0221569618121342,
-                "average_biggest_cluster_area": 0.9898013116239746,
-                "percolation": 0.9890260259718388,
-                "kernel_size": 15
-            },
-            {
-                "average_cluster_count": 1.0240797267891684,
-                "average_biggest_cluster_area": 0.989597363934193,
-                "percolation": 0.9889929883945842,
-                "kernel_size": 17
-            },
-            {
-                "average_cluster_count": 1.0259043280182232,
-                "average_biggest_cluster_area": 0.9893834977084138,
-                "percolation": 0.9889734244495064,
-                "kernel_size": 19
-            },
-            {
-                "average_cluster_count": 1.0274079432520207,
-                "average_biggest_cluster_area": 0.9891735198299622,
-                "percolation": 0.9888805459917467,
-                "kernel_size": 21
-            },
-            {
-                "average_cluster_count": 1.0289706811614652,
-                "average_biggest_cluster_area": 0.9889582015043074,
-                "percolation": 0.9888528291237477,
-                "kernel_size": 23
-            },
-            {
-                "average_cluster_count": 1.0305193844332643,
-                "average_biggest_cluster_area": 0.9887450133175604,
-                "percolation": 0.988831138403867,
-                "kernel_size": 25
-            },
-            {
-                "average_cluster_count": 1.032276853487003,
-                "average_biggest_cluster_area": 0.9885347421091492,
-                "percolation": 0.9888062707190879,
-                "kernel_size": 27
-            },
-            {
-                "average_cluster_count": 1.0326830863121186,
-                "average_biggest_cluster_area": 0.9883231086805019,
-                "percolation": 0.9887890770955287,
-                "kernel_size": 29
-            },
-            {
-                "average_cluster_count": 1.0333683821826671,
-                "average_biggest_cluster_area": 0.988108250275501,
-                "percolation": 0.988721780982244,
-                "kernel_size": 31
-            },
-            {
-                "average_cluster_count": 1.0339406577093397,
-                "average_biggest_cluster_area": 0.9878852366925306,
-                "percolation": 0.9886162062198067,
-                "kernel_size": 33
-            },
-            {
-                "average_cluster_count": 1.034737983398345,
-                "average_biggest_cluster_area": 0.9876624752457235,
-                "percolation": 0.9885097074795957,
-                "kernel_size": 35
-            },
-            {
-                "average_cluster_count": 1.035309442114627,
-                "average_biggest_cluster_area": 0.9874229751590606,
-                "percolation": 0.9883593849281993,
-                "kernel_size": 37
-            },
-            {
-                "average_cluster_count": 1.036239103362391,
-                "average_biggest_cluster_area": 0.9871685189793237,
-                "percolation": 0.9882348245361944,
-                "kernel_size": 39
-            },
-            {
-                "average_cluster_count": 1.037577346718702,
-                "average_biggest_cluster_area": 0.9869018222071907,
-                "percolation": 0.9881685195645477,
-                "kernel_size": 41
-            }
-        ]
-    },
-    {
-        "name": "class2.jpg",
-        "percolation_results": [
-            {
-                "average_cluster_count": 1.0005242375920702,
-                "average_biggest_cluster_area": 0.9947389650502041,
-                "percolation": 0.9941092633804709,
-                "kernel_size": 3
-            },
-            {
-                "average_cluster_count": 1.0024622590566525,
-                "average_biggest_cluster_area": 0.9942191205127368,
-                "percolation": 0.9941187519075905,
-                "kernel_size": 5
-            },
-            {
-                "average_cluster_count": 1.0060854050547052,
-                "average_biggest_cluster_area": 0.9939586805260806,
-                "percolation": 0.9939057477365891,
-                "kernel_size": 7
-            },
-            {
-                "average_cluster_count": 1.0106463371266003,
-                "average_biggest_cluster_area": 0.9937741103676755,
-                "percolation": 0.9937959340919867,
-                "kernel_size": 9
-            },
-            {
-                "average_cluster_count": 1.016331441300321,
-                "average_biggest_cluster_area": 0.9935786462351464,
-                "percolation": 0.9937476548121765,
-                "kernel_size": 11
-            },
-            {
-                "average_cluster_count": 1.0219166726519668,
-                "average_biggest_cluster_area": 0.9933674817724598,
-                "percolation": 0.993592736239795,
-                "kernel_size": 13
-            },
-            {
-                "average_cluster_count": 1.0272860691579904,
-                "average_biggest_cluster_area": 0.9931566724341773,
-                "percolation": 0.9934784700794553,
-                "kernel_size": 15
-            },
-            {
-                "average_cluster_count": 1.0325238757253385,
-                "average_biggest_cluster_area": 0.9929462818663771,
-                "percolation": 0.993341997098646,
-                "kernel_size": 17
-            },
-            {
-                "average_cluster_count": 1.0375216400911162,
-                "average_biggest_cluster_area": 0.9927308350002179,
-                "percolation": 0.993213363705391,
-                "kernel_size": 19
-            },
-            {
-                "average_cluster_count": 1.0420054696847605,
-                "average_biggest_cluster_area": 0.9925208771761179,
-                "percolation": 0.9930591165482382,
-                "kernel_size": 21
-            },
-            {
-                "average_cluster_count": 1.0457773265194692,
-                "average_biggest_cluster_area": 0.9923093151608302,
-                "percolation": 0.9929402273605683,
-                "kernel_size": 23
-            },
-            {
-                "average_cluster_count": 1.0492040297918517,
-                "average_biggest_cluster_area": 0.9921059509716915,
-                "percolation": 0.9928433584887048,
-                "kernel_size": 25
-            },
-            {
-                "average_cluster_count": 1.0526752796108685,
-                "average_biggest_cluster_area": 0.9919049620753454,
-                "percolation": 0.9927456083279115,
-                "kernel_size": 27
-            },
-            {
-                "average_cluster_count": 1.0551936729356084,
-                "average_biggest_cluster_area": 0.991704945094242,
-                "percolation": 0.9926640926640926,
-                "kernel_size": 29
-            },
-            {
-                "average_cluster_count": 1.0578431188468929,
-                "average_biggest_cluster_area": 0.9915085214012963,
-                "percolation": 0.9925849778128266,
-                "kernel_size": 31
-            },
-            {
-                "average_cluster_count": 1.0596143443035426,
-                "average_biggest_cluster_area": 0.9913146834298837,
-                "percolation": 0.9924988677536232,
-                "kernel_size": 33
-            },
-            {
-                "average_cluster_count": 1.0609775757537443,
-                "average_biggest_cluster_area": 0.9911247203952726,
-                "percolation": 0.9924989094495407,
-                "kernel_size": 35
-            },
-            {
-                "average_cluster_count": 1.0617899351887152,
-                "average_biggest_cluster_area": 0.9909384819126652,
-                "percolation": 0.9925308171305122,
-                "kernel_size": 37
-            },
-            {
-                "average_cluster_count": 1.0628556375131717,
-                "average_biggest_cluster_area": 0.9907522316859977,
-                "percolation": 0.9925775138103905,
-                "kernel_size": 39
-            },
-            {
-                "average_cluster_count": 1.064321338708021,
-                "average_biggest_cluster_area": 0.9905687649198073,
-                "percolation": 0.9925702218342405,
-                "kernel_size": 41
-            }
-        ]
-    }
+  {
+    "name": "class1.jpg",
+    "folder": "../GCC-toolkit/sample/images/",
+    "percolation_results": [
+      {
+        "average_cluster_count": 1.1217708229674594,
+        "average_biggest_cluster_area": 0.2078490397042514,
+        "percolation": 0.01261070753308787,
+        "kernel_size": 3
+      },
+      {
+        "average_cluster_count": 1.4681529778806044,
+        "average_biggest_cluster_area": 0.12680337925540996,
+        "percolation": 0.010899448642639304,
+        "kernel_size": 5
+      },
+      {
+        "average_cluster_count": 2.174831906936422,
+        "average_biggest_cluster_area": 0.1159742876192432,
+        "percolation": 0.012653602282235058,
+        "kernel_size": 7
+      },
+      {
+        "average_cluster_count": 3.086287978327812,
+        "average_biggest_cluster_area": 0.12265176785165771,
+        "percolation": 0.017032858324159517,
+        "kernel_size": 9
+      },
+      {
+        "average_cluster_count": 4.092912581699347,
+        "average_biggest_cluster_area": 0.13728914732206435,
+        "percolation": 0.022232434640522877,
+        "kernel_size": 11
+      },
+      {
+        "average_cluster_count": 5.024069077172153,
+        "average_biggest_cluster_area": 0.15596666330618575,
+        "percolation": 0.026006732968416723,
+        "kernel_size": 13
+      },
+      {
+        "average_cluster_count": 5.830369799372976,
+        "average_biggest_cluster_area": 0.17668600393415734,
+        "percolation": 0.031113226484008816,
+        "kernel_size": 15
+      },
+      {
+        "average_cluster_count": 6.475136308956553,
+        "average_biggest_cluster_area": 0.19852621107221935,
+        "percolation": 0.03719529024564254,
+        "kernel_size": 17
+      },
+      {
+        "average_cluster_count": 6.96133704472542,
+        "average_biggest_cluster_area": 0.2209055164737773,
+        "percolation": 0.0461617495963599,
+        "kernel_size": 19
+      },
+      {
+        "average_cluster_count": 7.2984512281997835,
+        "average_biggest_cluster_area": 0.24353847991977434,
+        "percolation": 0.05656842827366033,
+        "kernel_size": 21
+      },
+      {
+        "average_cluster_count": 7.504982735723772,
+        "average_biggest_cluster_area": 0.2662244832893041,
+        "percolation": 0.07238247011952191,
+        "kernel_size": 23
+      },
+      {
+        "average_cluster_count": 7.5984470505189865,
+        "average_biggest_cluster_area": 0.28909623260026374,
+        "percolation": 0.09274915908641222,
+        "kernel_size": 25
+      },
+      {
+        "average_cluster_count": 7.5919882423877,
+        "average_biggest_cluster_area": 0.3119426356105421,
+        "percolation": 0.11835135018734656,
+        "kernel_size": 27
+      },
+      {
+        "average_cluster_count": 7.529345451983372,
+        "average_biggest_cluster_area": 0.3346540123789976,
+        "percolation": 0.15162133012481777,
+        "kernel_size": 29
+      },
+      {
+        "average_cluster_count": 7.444363507393463,
+        "average_biggest_cluster_area": 0.3570606379753649,
+        "percolation": 0.18992470126043542,
+        "kernel_size": 31
+      },
+      {
+        "average_cluster_count": 7.330983052709644,
+        "average_biggest_cluster_area": 0.3791847161653523,
+        "percolation": 0.23181805696706678,
+        "kernel_size": 33
+      },
+      {
+        "average_cluster_count": 7.2267814871352405,
+        "average_biggest_cluster_area": 0.4010804235412658,
+        "percolation": 0.2759479878763744,
+        "kernel_size": 35
+      },
+      {
+        "average_cluster_count": 7.1160839082956056,
+        "average_biggest_cluster_area": 0.4224239498329111,
+        "percolation": 0.3231120911920792,
+        "kernel_size": 37
+      },
+      {
+        "average_cluster_count": 7.010153963465916,
+        "average_biggest_cluster_area": 0.443234560507384,
+        "percolation": 0.3688086614261525,
+        "kernel_size": 39
+      },
+      {
+        "average_cluster_count": 6.912826375363424,
+        "average_biggest_cluster_area": 0.4634751300556332,
+        "percolation": 0.4115392214977277,
+        "kernel_size": 41
+      }
+    ]
+  },
+  {
+    "name": "class2.jpg",
+    "folder": "../GCC-toolkit/sample/images/",
+    "percolation_results": [
+      {
+        "average_cluster_count": 1.0986938998905365,
+        "average_biggest_cluster_area": 0.19779054853323966,
+        "percolation": 0.006080206985769728,
+        "kernel_size": 3
+      },
+      {
+        "average_cluster_count": 1.3562564788245721,
+        "average_biggest_cluster_area": 0.10922824992926689,
+        "percolation": 0.0037733675865971586,
+        "kernel_size": 5
+      },
+      {
+        "average_cluster_count": 1.9749574097035312,
+        "average_biggest_cluster_area": 0.09219207385400156,
+        "percolation": 0.004740375601052409,
+        "kernel_size": 7
+      },
+      {
+        "average_cluster_count": 2.844000324676972,
+        "average_biggest_cluster_area": 0.09336366908519961,
+        "percolation": 0.006960262582500926,
+        "kernel_size": 9
+      },
+      {
+        "average_cluster_count": 3.8743489583333335,
+        "average_biggest_cluster_area": 0.1023189785555366,
+        "percolation": 0.009265216503267974,
+        "kernel_size": 11
+      },
+      {
+        "average_cluster_count": 4.927839025518464,
+        "average_biggest_cluster_area": 0.11510634328110206,
+        "percolation": 0.010639118032534114,
+        "kernel_size": 13
+      },
+      {
+        "average_cluster_count": 5.9302021790640165,
+        "average_biggest_cluster_area": 0.13004953881425718,
+        "percolation": 0.012374931451571182,
+        "kernel_size": 15
+      },
+      {
+        "average_cluster_count": 6.828490264389903,
+        "average_biggest_cluster_area": 0.14592311602369837,
+        "percolation": 0.014565660037390576,
+        "kernel_size": 17
+      },
+      {
+        "average_cluster_count": 7.6185679687991446,
+        "average_biggest_cluster_area": 0.16228204494641174,
+        "percolation": 0.018176909689459227,
+        "kernel_size": 19
+      },
+      {
+        "average_cluster_count": 8.273784332867207,
+        "average_biggest_cluster_area": 0.1789582790013062,
+        "percolation": 0.022611540592596503,
+        "kernel_size": 21
+      },
+      {
+        "average_cluster_count": 8.804504648074369,
+        "average_biggest_cluster_area": 0.19579275337211552,
+        "percolation": 0.029739707835325365,
+        "kernel_size": 23
+      },
+      {
+        "average_cluster_count": 9.203757774105744,
+        "average_biggest_cluster_area": 0.21285362595527882,
+        "percolation": 0.038807694158792296,
+        "kernel_size": 25
+      },
+      {
+        "average_cluster_count": 9.490438864722856,
+        "average_biggest_cluster_area": 0.23010772331750062,
+        "percolation": 0.05031170593048796,
+        "kernel_size": 27
+      },
+      {
+        "average_cluster_count": 9.685280934805348,
+        "average_biggest_cluster_area": 0.24741752976174905,
+        "percolation": 0.06485862478253093,
+        "kernel_size": 29
+      },
+      {
+        "average_cluster_count": 9.804065040650407,
+        "average_biggest_cluster_area": 0.2645857709126938,
+        "percolation": 0.0816827631363562,
+        "kernel_size": 31
+      },
+      {
+        "average_cluster_count": 9.84813909413025,
+        "average_biggest_cluster_area": 0.2816911994063097,
+        "percolation": 0.10109868981239871,
+        "kernel_size": 33
+      },
+      {
+        "average_cluster_count": 9.848753346164909,
+        "average_biggest_cluster_area": 0.29877814695267374,
+        "percolation": 0.12294805424658746,
+        "kernel_size": 35
+      },
+      {
+        "average_cluster_count": 9.815956386396921,
+        "average_biggest_cluster_area": 0.31564983856040113,
+        "percolation": 0.14820940320865145,
+        "kernel_size": 37
+      },
+      {
+        "average_cluster_count": 9.757308498828174,
+        "average_biggest_cluster_area": 0.33254851027715465,
+        "percolation": 0.17461340928714802,
+        "kernel_size": 39
+      },
+      {
+        "average_cluster_count": 9.693222683264176,
+        "average_biggest_cluster_area": 0.3490672636362,
+        "percolation": 0.20185169503486042,
+        "kernel_size": 41
+      }
+    ]
+  },
+  {
+    "name": "class2.jpg",
+    "folder": "../GCC-toolkit/sample/images/folder/",
+    "percolation_results": [
+      {
+        "average_cluster_count": 1.0986938998905365,
+        "average_biggest_cluster_area": 0.19779054853323966,
+        "percolation": 0.006080206985769728,
+        "kernel_size": 3
+      },
+      {
+        "average_cluster_count": 1.3562564788245721,
+        "average_biggest_cluster_area": 0.10922824992926689,
+        "percolation": 0.0037733675865971586,
+        "kernel_size": 5
+      },
+      {
+        "average_cluster_count": 1.9749574097035312,
+        "average_biggest_cluster_area": 0.09219207385400156,
+        "percolation": 0.004740375601052409,
+        "kernel_size": 7
+      },
+      {
+        "average_cluster_count": 2.844000324676972,
+        "average_biggest_cluster_area": 0.09336366908519961,
+        "percolation": 0.006960262582500926,
+        "kernel_size": 9
+      },
+      {
+        "average_cluster_count": 3.8743489583333335,
+        "average_biggest_cluster_area": 0.1023189785555366,
+        "percolation": 0.009265216503267974,
+        "kernel_size": 11
+      },
+      {
+        "average_cluster_count": 4.927839025518464,
+        "average_biggest_cluster_area": 0.11510634328110206,
+        "percolation": 0.010639118032534114,
+        "kernel_size": 13
+      },
+      {
+        "average_cluster_count": 5.9302021790640165,
+        "average_biggest_cluster_area": 0.13004953881425718,
+        "percolation": 0.012374931451571182,
+        "kernel_size": 15
+      },
+      {
+        "average_cluster_count": 6.828490264389903,
+        "average_biggest_cluster_area": 0.14592311602369837,
+        "percolation": 0.014565660037390576,
+        "kernel_size": 17
+      },
+      {
+        "average_cluster_count": 7.6185679687991446,
+        "average_biggest_cluster_area": 0.16228204494641174,
+        "percolation": 0.018176909689459227,
+        "kernel_size": 19
+      },
+      {
+        "average_cluster_count": 8.273784332867207,
+        "average_biggest_cluster_area": 0.1789582790013062,
+        "percolation": 0.022611540592596503,
+        "kernel_size": 21
+      },
+      {
+        "average_cluster_count": 8.804504648074369,
+        "average_biggest_cluster_area": 0.19579275337211552,
+        "percolation": 0.029739707835325365,
+        "kernel_size": 23
+      },
+      {
+        "average_cluster_count": 9.203757774105744,
+        "average_biggest_cluster_area": 0.21285362595527882,
+        "percolation": 0.038807694158792296,
+        "kernel_size": 25
+      },
+      {
+        "average_cluster_count": 9.490438864722856,
+        "average_biggest_cluster_area": 0.23010772331750062,
+        "percolation": 0.05031170593048796,
+        "kernel_size": 27
+      },
+      {
+        "average_cluster_count": 9.685280934805348,
+        "average_biggest_cluster_area": 0.24741752976174905,
+        "percolation": 0.06485862478253093,
+        "kernel_size": 29
+      },
+      {
+        "average_cluster_count": 9.804065040650407,
+        "average_biggest_cluster_area": 0.2645857709126938,
+        "percolation": 0.0816827631363562,
+        "kernel_size": 31
+      },
+      {
+        "average_cluster_count": 9.84813909413025,
+        "average_biggest_cluster_area": 0.2816911994063097,
+        "percolation": 0.10109868981239871,
+        "kernel_size": 33
+      },
+      {
+        "average_cluster_count": 9.848753346164909,
+        "average_biggest_cluster_area": 0.29877814695267374,
+        "percolation": 0.12294805424658746,
+        "kernel_size": 35
+      },
+      {
+        "average_cluster_count": 9.815956386396921,
+        "average_biggest_cluster_area": 0.31564983856040113,
+        "percolation": 0.14820940320865145,
+        "kernel_size": 37
+      },
+      {
+        "average_cluster_count": 9.757308498828174,
+        "average_biggest_cluster_area": 0.33254851027715465,
+        "percolation": 0.17461340928714802,
+        "kernel_size": 39
+      },
+      {
+        "average_cluster_count": 9.693222683264176,
+        "average_biggest_cluster_area": 0.3490672636362,
+        "percolation": 0.20185169503486042,
+        "kernel_size": 41
+      }
+    ]
+  }
 ]

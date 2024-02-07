@@ -33,10 +33,10 @@ Fractal geometry was defined to measure complex shapes and some values of it can
 
  ### Performance issues
  Although the provided script works just fine, the gliding box algorithm has a very high computional cost as its behavior aproaches O(n⁵). Given that it can take some time to process an image, especially with high values for R. To avoid days and days of processing a friend kindly re-wrote the algorithm with GoLang to achieve a better performance. The script for it can be found [here](https://github.com/ThiagoLeal11/glidingBox).
- The GoLang gliding box script outputs the probability matrix or percolatio ndata in a JSON file, and at [go_lang_fractal_json_processing_exemple.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_fractal_json_processing_exemple.py) and [go_lang_percolation_json_processing_exemple.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_percolation_json_processing_exemple.py) there are examples of how to get Lacunarity, Fractal Dimension and Percolation arffs out of the script's output.
+ The GoLang gliding box script outputs the probability matrix or percolatio ndata in a JSON file, and at [go_lang_probability_matrix_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_probability_matrix_json_processing_example.py) and [go_lang_percolation_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_percolation_json_processing_example.py) there are examples of how to get Lacunarity, Fractal Dimension and Percolation arffs out of the script's output.
 
 ## CNN Training
-To extract deep features from a CNN, either with ou without any transfer learning, it may be necessary to apply some training to the network. At [training_exemple.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/training_example.py) you'll find a guide to apply this training to a network using the tools provided here and from external packages.
+To extract deep features from a CNN, either with ou without any transfer learning, it may be necessary to apply some training to the network. At [training_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/training_example.py) you'll find a guide to apply this training to a network using the tools provided here and from external packages.
 
 ## Deep Features Extraction
 

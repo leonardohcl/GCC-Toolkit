@@ -32,3 +32,12 @@ class Curve:
             raise Exception("X and Y lists don't match length")
         split_point = math.floor(len(x) / 2)
         return Curve.area(x[:split_point], y[:split_point]) / Curve.area(x[split_point:], y[split_point:])
+    
+    @staticmethod
+    def get_descriptors(x, y):
+        area = Curve.area(x, y)
+        skew = Curve.skweness(y)
+        area_ratio = Curve.area_ratio(x, y)
+        max_value = max(y)
+        
+        return [area, skew, area_ratio, max_value]

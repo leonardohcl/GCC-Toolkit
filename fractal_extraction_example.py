@@ -5,7 +5,7 @@ import pandas as pd
 # 0. Define important variables
 # Input details
 IMAGE_CSV_PATH = "sample/sample-images.csv"
-IMAGE_FOLDER_PATH = "sample"
+IMAGE_FOLDER_PATH = "sample/images"
 PROB_MATRIX_JSON_PATH = "sample/go-probability-matrix.json"
 MIN_R = 3
 MAX_R = 5

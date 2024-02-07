@@ -11,7 +11,7 @@ from torchvision import models, transforms
 # 0. Define important variables
 # Input info
 IMAGE_CSV_PATH = "sample/sample-images.csv"
-IMAGE_FOLDER_PATH = "sample"
+IMAGE_FOLDER_PATH = "sample/images"
 CLASSES = [0, 1]
 
 # Output info

@@ -196,7 +196,7 @@ class GlidingBox:
         return probability_matrix
 
     @staticmethod
-    def lacunarity(probability_matrix: list, min_r: int = 3, max_r: int = 11):
+    def lacunarity(probability_matrix: list, min_r: int = 3, max_r: int = 11) -> float:
         if (max_r < min_r):
             raise Exception("Invalid values for min_r and max_r")
         r_list = [r for r in range(min_r, max_r+1, 2)]
@@ -219,7 +219,7 @@ class GlidingBox:
         return lac
 
     @staticmethod
-    def fractal_dimension(probability_matrix: list, min_r: int = 3, max_r: int = 11):
+    def fractal_dimension(probability_matrix: list, min_r: int = 3, max_r: int = 11) -> float:
         if (max_r < min_r):
             raise Exception(
                 "Invalid values for min_r and max_R".format(min_r, max_r))
@@ -376,3 +376,125 @@ class PercolationData:
     @property
     def avg_biggest_cluster_area(self):
         return self._avg_biggest_cluster_area
+
+PROBABILITY_MATRIX_ARFF_ATTRIBUTES = [
+    "MinkLAC1",
+    "MinkLAC2",
+    "MinkLAC3",
+    "MinkLAC4",
+    "MinkLAC5",
+    "MinkLAC6",
+    "MinkLAC7",
+    "MinkLAC8",
+    "MinkLAC9",
+    "MinkLAC10",
+    "MinkLAC11",
+    "MinkLAC12",
+    "MinkLAC13",
+    "MinkLAC14",
+    "MinkLAC15",
+    "MinkLAC16",
+    "MinkLAC17",
+    "MinkLAC18",
+    "MinkLAC19",
+    "MinkLAC20",
+    "MinkDF1",
+    "MinkDF2",
+    "MinkDF3",
+    "MinkDF4",
+    "MinkDF5",
+    "MinkDF6",
+    "MinkDF7",
+    "MinkDF8",
+    "MinkDF9",
+    "MinkDF10",
+    "MinkDF11",
+    "MinkDF12",
+    "MinkDF13",
+    "MinkDF14",
+    "MinkDF15",
+    "MinkDF16",
+    "MinkDF17",
+    "MinkDF18",
+    "MinkDF19",
+    "MinkDF20",
+    "MinkAreaLAC",
+    "MinkSkewnessLAC",
+    "MinkAreaRatioLAC",
+    "MinkMaxLAC"
+]
+
+PERCOLATION_ARFF_ATTRIBUTES = [
+    "Minkp1",
+    "Minkp2",
+    "Minkp3",
+    "Minkp4",
+    "Minkp5",
+    "Minkp6",
+    "Minkp7",
+    "Minkp8",
+    "Minkp9",
+    "Minkp10",
+    "Minkp11",
+    "Minkp12",
+    "Minkp13",
+    "Minkp14",
+    "Minkp15",
+    "Minkp16",
+    "Minkp17",
+    "Minkp18",
+    "Minkp19",
+    "Minkp20",
+    "Minkg1",
+    "Minkg2",
+    "Minkg3",
+    "Minkg4",
+    "Minkg5",
+    "Minkg6",
+    "Minkg7",
+    "Minkg8",
+    "Minkg9",
+    "Minkg10",
+    "Minkg11",
+    "Minkg12",
+    "Minkg13",
+    "Minkg14",
+    "Minkg15",
+    "Minkg16",
+    "Minkg17",
+    "Minkg18",
+    "Minkg19",
+    "Minkg20",
+    "Minkh1",
+    "Minkh2",
+    "Minkh3",
+    "Minkh4",
+    "Minkh5",
+    "Minkh6",
+    "Minkh7",
+    "Minkh8",
+    "Minkh9",
+    "Minkh10",
+    "Minkh11",
+    "Minkh12",
+    "Minkh13",
+    "Minkh14",
+    "Minkh15",
+    "Minkh16",
+    "Minkh17",
+    "Minkh18",
+    "Minkh19",
+    "Minkh20",
+    "MinkAreaCluster",
+    "MinkSkewnessCluster",
+    "MinkAreaRationCluster",
+    "MinkMaxCluster",
+    "MinkAreaPerc",
+    "MinkSkewnessPerc",
+    "MinkAreaRationPerc",
+    "MinkMaxPerc",
+    "MinkAreaMaxCluster",
+    "MinkSkewnessMaxCluster",
+    "MinkAreaRationMaxCluster",
+    "MinkMaxMaxCluster",
+]
