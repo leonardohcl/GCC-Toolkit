@@ -1,8 +1,8 @@
 from copy import copy
-from unittest import result
 from PIL import Image
 from pandas import DataFrame
 import os
+from math import ceil
 
 
 class ImageFile:
@@ -26,7 +26,6 @@ class ImageFile:
 
         path = os.path.join(folder, filename + "." + extension)
         image.save(path)
-
 
 class Arff:
     """Structure that holds an arff file
@@ -254,12 +253,23 @@ class Folder:
     def __init__(self, path: str) -> None:
         self._path = path
 
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def absolute_path(self):
+        return os.path.abspath(self.path)
+
+    def check_existence(self):
+        if self.does_exist(): return
+        raise Exception(f"Folder doesn't exist. path: {self._path}")
+
     def does_exist(self):
         return os.path.isdir(self._path)
 
     def create(self):
-        if (self.does_exist):
-            return
+        if (self.does_exist()): return
         full_path = self._path.split('/')
         file_tree = ''
         for folder in full_path:
@@ -269,32 +279,53 @@ class Folder:
             os.mkdir(file_tree)
         self._exists = True
 
-    def get_content_csv(self, csv_name: str, extension: str = None):
+    def get_files(self, extension: str = None):
+        self.check_existence()
+        content_list = os.listdir(self._path)
+        file_list = []
+
+        for content in content_list:
+            if os.path.isfile(os.path.join(self._path, content)):
+                file_list.append(content)
+
+        if extension:
+            temp_list = []
+            for f in file_list:
+                if f.endswith(extension):
+                    temp_list.append(f)
+            file_list = temp_list
+        
+        return file_list
+        
+    def get_files_csv(self, csv_name: str, extension: str = None):
         """Create a csv file with the contents of a folder
             Args:
                 csv_name(string): output csv file name, without extension
                 extension(string): filter only files of a kind on the output csv. 
         """
-        if self.does_exist():
-            output_file_path = os.path.join(self._path, csv_name)+'.csv'
-            if os.path.isfile(output_file_path):
-                print(
-                    f"There's already a csv file with given name. name: {csv_name}")
-                return
+        output_file_path = os.path.join(self._path, csv_name)+'.csv'
+        if os.path.isfile(output_file_path):
+            print(
+                f"There's already a csv file with given name. name: {csv_name}")
+            return
 
-            content_list = os.listdir(self._path)
-            file_list = []
-            for content in content_list:
-                if os.path.isfile(os.path.join(self._path, content)):
-                    file_list.append(content)
-            if extension:
-                temp_list = []
-                for f in file_list:
-                    if f.endswith(extension):
-                        temp_list.append(f)
-                file_list = temp_list
+        file_list = self.get_files(extension)
+        df = DataFrame(file_list)
+        df.to_csv(output_file_path, header=False, index=False)
 
-            df = DataFrame(file_list)
-            df.to_csv(output_file_path, header=False, index=False)
-        else:
-            print(f"Folder doesn't exist. path: {self._path}")
+    def group_files(self, folder_suffix: str, group_size: int = 10, extension: str = None):
+        files = self.get_files(extension)
+        folder_count = ceil(len(files) / group_size)
+        folder_names = [f"{folder_suffix}-{i}" for i in range(folder_count)]
+        folders = [Folder(os.path.join(self.path, name)) for name in folder_names]
+
+        for folder in folders:
+            if folder.does_exist():
+                raise Exception(f"Can't use '{folder_suffix}' as a folder suffix. Found existing folder {folder.path}")
+
+        for folder in folders:
+            folder.create()
+            folder_files = files[:group_size]
+            files = files[group_size:]
+            for file in folder_files:
+                os.rename(os.path.join(self.absolute_path, file), os.path.join(folder.absolute_path, file))
