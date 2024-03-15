@@ -94,7 +94,7 @@ class Hypercube:
             point_idx += offset * multiplier
             multiplier *= self.sizes[idx]
         
-        return point_idx 
+        return int(point_idx) 
 
     def get_kdTree(self):
         return KDTree(self.get_points())

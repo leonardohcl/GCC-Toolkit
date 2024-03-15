@@ -22,13 +22,17 @@ class ImageFile:
         self.width = shape[1]
         self.area = Hypercube([0,0], [self.width,self.height])
         
-        self.pixels = [ImageFile.get_pixel_coords(pixel, img.getpixel(pixel)) for pixel in self.area.get_points()]
+        self.pixels = [ImageFile.pixel_to_vector(pixel, img.getpixel(pixel)) for pixel in self.area.get_points()]
     
-    def get_pixel_idx(self, pixel:list[int]):
-        return self.area.get_point_idx(pixel)
+    def get_pixel_idx(self, coords:list[int]):
+        return self.area.get_point_idx(coords[:2])
+    
+    def get_pixel(self, coords: list[int]):
+        idx = self.get_pixel_idx(coords)
+        return self.pixels[idx]
 
     @staticmethod
-    def get_pixel_coords(point: tuple, color: tuple | int):
+    def pixel_to_vector(point: tuple, color: tuple | int):
         try:
             return ([point[0], point[1]] + list(color))
         except:

@@ -53,8 +53,7 @@ class GlidingBox:
         pad = int(r/2)
         box_count = (img.width - r + 1) * (img.height - r + 1)
         ocurrences = {}
-        center_pixels = Hypercube(
-            [pad, pad], [img.width-pad-1, img.height-pad-1])
+        center_pixels = Hypercube([pad, pad], [img.width-pad-1, img.height-pad-1])
         
         hypervector_tree = KDTree(img.pixels) if color_tree == None else color_tree
         image_area_tree = img.area.get_kdTree() if position_tree == None else position_tree 
@@ -115,7 +114,6 @@ class GlidingBox:
         if print_progress:
             box_size_iterator.set_description(f"{img_path} | opening file...")
             box_size_iterator.update(0)
-        # opens file
         img = ImageFile(img_path, mode)
 
         if print_progress:
@@ -140,16 +138,18 @@ class GlidingBox:
 
 
 PRINT_PROGRESS = True
-R = 25
+R = 3
 MIN_R = R
 MAX_R = R
 # IMG_PATH = 'asd/test.jpg'
 IMG_PATH = 'sample/images/class1.jpg'
 
-# print("[NEW IMPLEMENTATION]")
-m = GlidingBox.probability_matrix(IMG_PATH, MIN_R, MAX_R, print_progress=PRINT_PROGRESS)
+
+print("\n[OLD IMPLEMENTATION]")
+m = GlidingBoxN2.probability_matrix(IMG_PATH, MIN_R, MAX_R, print_progress=PRINT_PROGRESS)
 # print(m)
 
-# print("\n[OLD IMPLEMENTATION]")
-# for r in range(MIN_R, MAX_R + 1, 2):
-#      GlidingBoxN2.probability_matrix(IMG_PATH, r, r, print_progress=PRINT_PROGRESS)
+# print("\n[NEW IMPLEMENTATION]")
+# m = GlidingBox.probability_matrix(IMG_PATH, MIN_R, MAX_R, print_progress=PRINT_PROGRESS)
+# print(m)
+

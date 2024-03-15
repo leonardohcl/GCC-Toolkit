@@ -3,6 +3,8 @@ import statistics
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from File import ImageMode
+from Hyperspace import DistanceMode, Hypercube
 from tqdm.notebook import tqdm as tqdm_notebook
 
 def get_pixel_coords(x:int, y:int, value: int|tuple) -> list[int]:
@@ -144,10 +146,19 @@ class GlidingBoxN2:
         return cluster_map, cluster_count, biggest_cluster_size
 
     @staticmethod
+    def get_iterator(iterator, print_progress, is_notebook, leave=bool | None, position=None, ):
+        if print_progress:
+            if is_notebook:
+                return tqdm_notebook(iterator, position=position, leave=leave)
+            else:
+                return tqdm(iterator, position=position, leave=leave)
+        return iterator
+
+    @staticmethod
     def probability_matrix(img_path: str,
                            min_r: int = 3,
                            max_r: int = 11,
-                           image_mode: str = "RGB",
+                           image_mode = ImageMode.RGB,
                            print_progress=True,
                            is_notebook_env=False):
         """Creates a probability matrix using the gliding box algorithm with chessboard distance.
@@ -158,11 +169,21 @@ class GlidingBoxN2:
                 image_mode: mode to process input image. Accepts PIL modes, such as "L" for B/W images or "RGB" for RGB images. (default "RGB") 
         """
 
+        box_sizes = [r for r in range(min_r, max_r + 1, 2)]
+
+        box_size_iterator = GlidingBoxN2.get_iterator(box_sizes, 
+                                                    print_progress, 
+                                                    is_notebook_env, 
+                                                    position=0)
+        
+        if print_progress:
+            box_size_iterator.set_description(f"{img_path} | opening file...")
+            box_size_iterator.update(0)
         # opens file
         file = Image.open(img_path)
 
         # convert file data to image on given mode
-        img = file.convert(image_mode)
+        img = file.convert(image_mode.value)
 
         # create empty occurence matrix
         occurrence_matrix = []
@@ -170,20 +191,11 @@ class GlidingBoxN2:
 
         # get image size
         shape = np.shape(img)
-        width = shape[0]
-        height = shape[1]
+        height = shape[0]
+        width = shape[1]
 
         # iterate over box sizes
-        if print_progress:
-            if is_notebook_env:
-                iterator = tqdm_notebook(range(min_r, max_r + 2, 2))
-            else:
-                iterator = tqdm(range(min_r, max_r + 2, 2))
-        else:
-            iterator = range(min_r, max_r + 2, 2)
-        for r in iterator:
-            if print_progress:
-                iterator.set_description(f"[{img_path}] Processing (r={r})")
+        for r in box_size_iterator:
             # count how many boxes fit in the image
             box_count = (width - r + 1) * (height-r + 1)
 
@@ -193,24 +205,28 @@ class GlidingBoxN2:
             # get pad size from borders
             pad = int(r / 2)
 
-            # get starting and ending indexes for central pixels
-            x_start = y_start = pad
-            x_end = width - pad
-            y_end = height - pad
+            center = Hypercube([pad, pad], [width - pad - 1, height - pad - 1])
+            pixel_iterator = GlidingBoxN2.get_iterator(range(center.point_count), print_progress, is_notebook_env, leave= False, position=1)
+            if print_progress: 
+                pixel_iterator.set_description(f"r = {r:=2d}")
+                pixel_iterator.update(0)
+                box_size_iterator.set_description(f"{img_path} | {min_r} <= r <= {max_r}")
 
-            for x in range(x_start, x_end):
-                for y in range(y_start, y_end):
-                    central_pixel = img.getpixel((y, x))
+            for col in range(center.start[0], center.end[0]):
+                for row in range(center.start[1], center.end[1]):
+                    central_pixel = img.getpixel((col, row))
                     mass = 0
                     # iterate over the box
-                    for i in range(x - pad, x + pad + 1):
-                        for j in range(y - pad, y + pad + 1):
-                            pixel = img.getpixel((j, i))
+                    for area_row in range(row - pad, row + pad + 1):
+                        for area_col in range(col - pad, col + pad + 1):
+                            pixel = img.getpixel((area_col, area_row))
                             if (GlidingBoxN2._pixel_is_in_the_box(central_pixel, pixel, r)):
                                 mass = mass + 1
                     # increment occurence matrix
                     occurrences[mass - 1] = occurrences[mass - 1] + 1
+                    if print_progress: pixel_iterator.update(1)
 
+            if print_progress: pixel_iterator.close()
             # add occurrences to matrix
             occurrence_matrix.append(occurrences)
             # calculate probability
@@ -266,7 +282,7 @@ class GlidingBoxN2:
                     min_r: int = 3,
                     max_r: int = 11,
                     percolation_threshold: float = 0.59275,
-                    image_mode: str = "RGB",
+                    image_mode = ImageMode.RGB,
                     print_progress=True,
                     is_notebook_env=False):
         """Creates a probability matrix using the gliding box algorithm with chessboard distance.
@@ -281,7 +297,7 @@ class GlidingBoxN2:
         file = Image.open(img_path)
 
         # convert file data to image on given mode
-        img = file.convert(image_mode)
+        img = file.convert(image_mode.value)
 
         # get image size
         shape = np.shape(img)
