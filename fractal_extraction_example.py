@@ -1,5 +1,5 @@
 import os
-from Fractal import GlidingBox, PercolationData
+from Fractal import GlidingBoxN2, PercolationData
 import pandas as pd
 
 # 0. Define important variables
@@ -20,16 +20,16 @@ for idx in range(len(IMAGE_LIST)):
     image_path = os.path.join(IMAGE_FOLDER_PATH, image_filename)
 
     # 2.2. Processos image to obtain its probability matrix with the gliding box technique
-    prob_matrix = GlidingBox.probability_matrix(
+    prob_matrix = GlidingBoxN2.probability_matrix(
         image_path, min_r=MIN_R, max_r=MAX_R)
 
     # 2.2. Extract lacunarity from the probability matrix
-    lac = GlidingBox.lacunarity(prob_matrix, min_r=MIN_R, max_r=MAX_R)
+    lac = GlidingBoxN2.lacunarity(prob_matrix, min_r=MIN_R, max_r=MAX_R)
 
     # 2.3. Extract fractal dimension from the probability matrix
-    fd = GlidingBox.fractal_dimension(prob_matrix, min_r=MIN_R, max_r=MAX_R)
+    fd = GlidingBoxN2.fractal_dimension(prob_matrix, min_r=MIN_R, max_r=MAX_R)
 
-    perc = GlidingBox.percolation(image_path, min_r=MIN_R, max_r=MAX_R)
+    perc = GlidingBoxN2.percolation(image_path, min_r=MIN_R, max_r=MAX_R)
     print(f"{lac} <- Lacunarity")
     print(f"{fd} <- Fractal Dimension")
     print(f"{perc.avg_cluster_count} <- [p(r)] average cluster/box")

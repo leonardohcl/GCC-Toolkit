@@ -3,9 +3,37 @@ from PIL import Image
 from pandas import DataFrame
 import os
 from math import ceil
-
+from enum import Enum
+import numpy as np
+from Hyperspace import Hypercube
+    
+class ImageMode(Enum):
+    RGB= 'RGB'
+    Grayscale = 'L'
 
 class ImageFile:
+    def __init__(self, path, mode:ImageMode = ImageMode.RGB) -> None:
+        self.path = path
+        file = ImageFile.read(path)
+        img = file.convert(mode.value)
+        
+        shape = np.shape(img)
+        self.height = shape[0]
+        self.width = shape[1]
+        self.area = Hypercube([0,0], [self.width,self.height])
+        
+        self.pixels = [ImageFile.get_pixel_coords(pixel, img.getpixel(pixel)) for pixel in self.area.get_points()]
+    
+    def get_pixel_idx(self, pixel:list[int]):
+        return self.area.get_point_idx(pixel)
+
+    @staticmethod
+    def get_pixel_coords(point: tuple, color: tuple | int):
+        try:
+            return ([point[0], point[1]] + list(color))
+        except:
+            return ([point[0], point[1], color])
+
     @staticmethod
     def read(path):
         """Open an image using PIL"""

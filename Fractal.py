@@ -5,30 +5,56 @@ from PIL import Image
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_notebook
 
+def get_pixel_coords(x:int, y:int, value: int|tuple) -> list[int]:
+        try:
+            return [x,y] + list(value)
+        except:
+            return [x,y, value]
+        
 
-class GlidingBox:
+def pixelDistanceStr(pixel1, pixel2):
+    x1 = pixel1[0]
+    y1 = pixel1[1]
+    value1 = pixel1[2]
+    x2 = pixel2[0]
+    y2 = pixel2[1]
+    value2 = pixel2[2]
+    man = abs(x2-x1) + abs(y2 -y2) + abs(value2-value1)
+    euc = math.sqrt((x2-x1)**2 + (y2-y1)**2 + (value2-value1)**2)
+    mink = max(abs(x2-x1), abs(y2 -y2), abs(value2-value1))
+    return f"man: {man:.2f} | euc: {euc:.2f} | mink: {mink:.2f}"
+
+def pixelStr(pixel):
+    return f"({pixel[0]:=2.0f},{pixel[1]:=2.0f})[{pixel[2]:=3.0f}]"
+
+class GlidingBoxN2:
+    def _pixel_distance(p1: list, p2: list):
+        if (type(p1) != type(p2)):
+            raise Exception(
+                f"center pixel and reference pixel must be of same type. received {type(p1)} {type(p2)}")
+
+        if (type(p1) == int):
+            return abs(p2 - p1)
+
+        channels = len(p1)
+        if (channels != len(p2)):
+            raise Exception(
+                f"center pixel and reference pixel does not have the same dimensions ({channels} against {len(p2)})")
+        
+        max_diff = -float('inf')
+        for i in range(channels):
+            diff = abs(p2[i] - p1[i])
+            if diff > max_diff: max_diff = diff
+        return max_diff
+        
     def _pixel_is_in_the_box(center: list, pixel: list, r: int):
         """Checks if a pixel is contained in a box of size r using the chessboard distance. Args:
-                center: values for the pixel in the center of the box
-                pixel: values for the reference pixel to check if is in the box
-                r: size of the square box
+        center: values for the pixel in the center of the box
+        pixel: values for the reference pixel to check if is in the box
+        r: size of the square box
         """
-        if (type(center) != type(pixel)):
-            raise Exception(
-                f"center pixel and reference pixel must be of same type. received {type(center)} {type(pixel)}")
-
-        if (type(center) == int):
-            return abs(pixel - center) <= r
-
-        channels = len(center)
-        if (channels != len(pixel)):
-            raise Exception(
-                f"center pixel and reference pixel does not have the same dimensions ({channels} against {len(pixel)})")
-        for i in range(channels):
-            diff = abs(pixel[i] - center[i])
-            if (diff > r):
-                return False
-        return True
+        dist = GlidingBoxN2._pixel_distance(center, pixel)
+        return dist <= r
 
     def _label_pixel_cluster(binary_map: list, cluster_map: list, x: int, y: int, label: int, connectivity: int):
         """Recursivelly apply label to pixel cluster
@@ -49,32 +75,32 @@ class GlidingBox:
             can_look_down = (x + 1) < height
 
             if (can_look_up):
-                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x -
+                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x -
                                                 1, y, label, connectivity)
             if (can_look_left):
-                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
+                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
                                                 y - 1, label, connectivity)
             if (can_look_right):
-                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
+                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
                                                 y + 1, label, connectivity)
             if (can_look_down):
-                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x +
+                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x +
                                                 1, y, label, connectivity)
 
             if (connectivity == 8):
                 if (can_look_left):
                     if (can_look_up):
-                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
                                                         x - 1, y - 1, label, connectivity)
                     if (can_look_down):
-                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
                                                         x + 1, y - 1, label, connectivity)
                 if (can_look_right):
                     if (can_look_up):
-                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
                                                         x - 1, y + 1, label, connectivity)
                     if (can_look_down):
-                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
                                                         x + 1, y + 1, label, connectivity)
 
     def _label_clusters(binary_map: list, connectivity: int):
@@ -95,7 +121,7 @@ class GlidingBox:
                     continue
                 # else, if the pixel is marked but it's cluster is not mapped start marking it
                 elif (cluster_map[x][y] == 0):
-                    GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
+                    GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
                                                     y, current_label, connectivity)
                     current_label += 1
 
@@ -106,7 +132,7 @@ class GlidingBox:
             binary_map: MxN map with zeros and ones to find where the clusters of ones are
             connectivity: what kind of neighbor connectivity to check for clusters, should be 4 or 8
         """
-        cluster_map, cluster_count = GlidingBox._label_clusters(binary_map,
+        cluster_map, cluster_count = GlidingBoxN2._label_clusters(binary_map,
                                                                 connectivity)
         flat_map = cluster_map.flatten().tolist()
 
@@ -175,14 +201,12 @@ class GlidingBox:
             for x in range(x_start, x_end):
                 for y in range(y_start, y_end):
                     central_pixel = img.getpixel((y, x))
-                    mass = 1
+                    mass = 0
                     # iterate over the box
                     for i in range(x - pad, x + pad + 1):
                         for j in range(y - pad, y + pad + 1):
-                            if (i == x and j == y):
-                                continue
                             pixel = img.getpixel((j, i))
-                            if (GlidingBox._pixel_is_in_the_box(central_pixel, pixel, r)):
+                            if (GlidingBoxN2._pixel_is_in_the_box(central_pixel, pixel, r)):
                                 mass = mass + 1
                     # increment occurence matrix
                     occurrences[mass - 1] = occurrences[mass - 1] + 1
@@ -307,7 +331,7 @@ class GlidingBox:
                         region_row = []
                         for j in range(y - pad, y + pad + 1):
                             pixel = img.getpixel((j, i))
-                            if (GlidingBox._pixel_is_in_the_box(central_pixel, pixel, r)):
+                            if (GlidingBoxN2._pixel_is_in_the_box(central_pixel, pixel, r)):
                                 # if pixel is in the box, tag it on the binary map
                                 region_row.append(1)
                                 # and count it a as percolated
@@ -318,7 +342,7 @@ class GlidingBox:
                         region.append(region_row)
                     [_,
                      clusters_on_box,
-                     biggest_cluster_size] = GlidingBox._region_cluster_data(region)
+                     biggest_cluster_size] = GlidingBoxN2._region_cluster_data(region)
 
                     cluster_counts.append(clusters_on_box)
                     biggest_cluster_areas.append(
@@ -341,8 +365,6 @@ class GlidingBox:
                                percolation,
                                average_cluster_count,
                                average_biggest_cluster_area)
-
-
 class PercolationData:
     def __init__(self, min_r, max_r, percolation, avg_cluster_count, avg_biggest_cluster_area) -> None:
         self._min_r = min_r
