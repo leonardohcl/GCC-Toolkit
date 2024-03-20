@@ -3,8 +3,8 @@ import statistics
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from File import ImageMode
-from Hyperspace import DistanceMode, Hypercube
+from File import ImageMode, ImageFile
+from Hyperspace import DistanceMode, Hypercube, Vector
 from tqdm.notebook import tqdm as tqdm_notebook
 
 def get_pixel_coords(x:int, y:int, value: int|tuple) -> list[int]:
@@ -159,6 +159,7 @@ class GlidingBoxN2:
                            min_r: int = 3,
                            max_r: int = 11,
                            image_mode = ImageMode.RGB,
+                           distance = DistanceMode.MINKOWSKI,
                            print_progress=True,
                            is_notebook_env=False):
         """Creates a probability matrix using the gliding box algorithm with chessboard distance.
@@ -180,58 +181,63 @@ class GlidingBoxN2:
             box_size_iterator.set_description(f"{img_path} | opening file...")
             box_size_iterator.update(0)
         # opens file
-        file = Image.open(img_path)
 
         # convert file data to image on given mode
-        img = file.convert(image_mode.value)
+        img = ImageFile(img_path, image_mode)
 
         # create empty occurence matrix
-        occurrence_matrix = []
-        probability_matrix = []
+        probability_matrix = {}
 
-        # get image size
-        shape = np.shape(img)
-        height = shape[0]
-        width = shape[1]
 
         # iterate over box sizes
         for r in box_size_iterator:
             # count how many boxes fit in the image
-            box_count = (width - r + 1) * (height-r + 1)
+            box_count = (img.width - r + 1) * (img.height-r + 1)
 
             # occurences
-            occurrences = np.zeros(pow(r, 2), dtype=int)
+            occurrences = {}
 
             # get pad size from borders
             pad = int(r / 2)
+            
+            # get central pixels
+            central_pixels = Hypercube([pad, pad], [(img.width - 2*pad),( img.height - 2*pad)])
 
-            center = Hypercube([pad, pad], [width - pad - 1, height - pad - 1])
-            pixel_iterator = GlidingBoxN2.get_iterator(range(center.point_count), print_progress, is_notebook_env, leave= False, position=1)
+            pixel_iterator = GlidingBoxN2.get_iterator(range(central_pixels.point_count), print_progress, is_notebook_env, leave= False, position=1)
             if print_progress: 
                 pixel_iterator.set_description(f"r = {r:=2d}")
                 pixel_iterator.update(0)
                 box_size_iterator.set_description(f"{img_path} | {min_r} <= r <= {max_r}")
 
-            for col in range(center.start[0], center.end[0]):
-                for row in range(center.start[1], center.end[1]):
-                    central_pixel = img.getpixel((col, row))
-                    mass = 0
-                    # iterate over the box
-                    for area_row in range(row - pad, row + pad + 1):
-                        for area_col in range(col - pad, col + pad + 1):
-                            pixel = img.getpixel((area_col, area_row))
-                            if (GlidingBoxN2._pixel_is_in_the_box(central_pixel, pixel, r)):
-                                mass = mass + 1
-                    # increment occurence matrix
-                    occurrences[mass - 1] = occurrences[mass - 1] + 1
-                    if print_progress: pixel_iterator.update(1)
+            def process_centers(coords):
+                x = coords[0]
+                y = coords[1]
+                central_pixel = img.get_pixel(coords)
+                contained = []
+                # iterate over the box
+
+                area = Hypercube([x-pad, y-pad], [r ,r])
+                def count_pixel(point):
+                    pixel = img.get_pixel(point)
+                    dist = Vector.distance(central_pixel, pixel, distance)
+                    if dist <= r:
+                        contained.append(pixel)
+                
+                area.loop(count_pixel)
+                weight = len(contained)
+                # increment occurence matrix
+                current_count = 0 if occurrences.get(weight) == None else occurrences[weight]
+                occurrences[weight] = current_count + 1
+
+                if print_progress: pixel_iterator.update(1)
+
+            central_pixels.loop(process_centers)
 
             if print_progress: pixel_iterator.close()
-            # add occurrences to matrix
-            occurrence_matrix.append(occurrences)
-            # calculate probability
-            probability_matrix.append(
-                [count/box_count for count in occurrences])
+            probs = {}            
+            for weight in occurrences:
+                probs[weight] =  occurrences[weight] / box_count
+            probability_matrix[r] = probs
 
         return probability_matrix
 

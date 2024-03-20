@@ -52,8 +52,8 @@ class GlidingBox:
 
         pad = int(r/2)
         box_count = (img.width - r + 1) * (img.height - r + 1)
-        ocurrences = {}
-        center_pixels = Hypercube([pad, pad], [img.width-pad-1, img.height-pad-1])
+        occurrences = {}
+        center_pixels = Hypercube([pad, pad], [img.width-pad-pad, img.height-pad-pad])
         
         hypervector_tree = KDTree(img.pixels) if color_tree == None else color_tree
         image_area_tree = img.area.get_kdTree() if position_tree == None else position_tree 
@@ -71,8 +71,8 @@ class GlidingBox:
                                            distance=distance, 
                                            color_tree=hypervector_tree, 
                                            position_tree=image_area_tree)
-            current_count = ocurrences.get(weight)
-            ocurrences[weight] = 1 if current_count == None else current_count + 1
+            current_count = occurrences.get(weight)
+            occurrences[weight] = 1 if current_count == None else current_count + 1
 
             if print_progress:
                 pixel_iterator.update(1)
@@ -84,8 +84,8 @@ class GlidingBox:
         if box_count == 0: return {}
 
         probs = {}
-        for weight in ocurrences:
-            probs[weight] =  ocurrences[weight] / box_count
+        for weight in occurrences:
+            probs[weight] =  occurrences[weight] / box_count
         return probs
 
     @staticmethod
@@ -118,7 +118,6 @@ class GlidingBox:
 
         if print_progress:
             box_size_iterator.set_description(f"{img_path} | building k-d tree...")
-
         color_tree = KDTree(img.pixels)
         pixel_tree = img.area.get_kdTree()
 
@@ -139,17 +138,17 @@ class GlidingBox:
 
 PRINT_PROGRESS = True
 R = 3
-MIN_R = R
-MAX_R = R
+MIN_R = 19
+MAX_R = 21
 # IMG_PATH = 'asd/test.jpg'
 IMG_PATH = 'sample/images/class1.jpg'
 
+for r in range(MIN_R, MAX_R+1, 2):
+    print("\n[OLD IMPLEMENTATION]")
+    m = GlidingBoxN2.probability_matrix(IMG_PATH, r, r, print_progress=PRINT_PROGRESS)
+    # print(m)
 
-print("\n[OLD IMPLEMENTATION]")
-m = GlidingBoxN2.probability_matrix(IMG_PATH, MIN_R, MAX_R, print_progress=PRINT_PROGRESS)
-# print(m)
-
-# print("\n[NEW IMPLEMENTATION]")
-# m = GlidingBox.probability_matrix(IMG_PATH, MIN_R, MAX_R, print_progress=PRINT_PROGRESS)
-# print(m)
+    # print("\n[NEW IMPLEMENTATION]")
+    # m = GlidingBox.probability_matrix(IMG_PATH, r, r, print_progress=PRINT_PROGRESS)
+    # print(m)
 
