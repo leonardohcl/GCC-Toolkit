@@ -1,5 +1,5 @@
 import pandas as pd
-from Fractal import GlidingBoxN2
+from Fractal import GlidingBox
 
 class GlidingBoxJson:
     def __init__(self, path:str):
@@ -46,12 +46,12 @@ class ProbabilityMatrixJson(GlidingBoxJson):
     def get_lacunarity(self, image_name, r) -> float:
         r_probs = self.get_probabilities(image_name, r)
         if r_probs == None: raise Exception("Probability matrix didn't have the values for r={}".format(r))
-        return GlidingBoxN2.lacunarity([r_probs], r, r)[0]
+        return GlidingBox.lacunarity([r_probs], r, r)[0]
 
     def get_fractal_dimension(self, image_name, r) -> float:
         r_probs = self.get_probabilities(image_name, r)
         if r_probs == None: raise Exception("Probability matrix didn't have the values for r={}".format(r))
-        return GlidingBoxN2.fractal_dimension([r_probs], r, r)[0]
+        return GlidingBox.fractal_dimension([r_probs], r, r)[0]
     
     def get_lacunarity_curve(self, image_name:str, min_r:int, max_r: int) -> list[float]:
         lac = []

@@ -4,32 +4,137 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from File import ImageMode, ImageFile
-from Hyperspace import DistanceMode, Hypercube, Vector
+from Hyperspace import DistanceMode, Hypercube
 from tqdm.notebook import tqdm as tqdm_notebook
+from scipy.spatial import KDTree
 
-def get_pixel_coords(x:int, y:int, value: int|tuple) -> list[int]:
-        try:
-            return [x,y] + list(value)
-        except:
-            return [x,y, value]
+class GlidingBox:
+    @staticmethod
+    def get_iterator(iterator, print_progress, is_notebook, leave=bool | None, position=None, ):
+        if print_progress:
+            if is_notebook:
+                return tqdm_notebook(iterator, position=position, leave=leave)
+            else:
+                return tqdm(iterator, position=position, leave=leave)
+        return iterator
+
+    @staticmethod
+    def box_weight(coords: list[int],
+                   img: ImageFile,
+                   r: int,
+                   distance=DistanceMode.MINKOWSKI,                   
+                   color_tree: KDTree = None,
+                   position_tree: KDTree = None):
+
+        pad = int(r/2)
+        colors = img.pixels
+        hypervector_tree = KDTree(colors) if color_tree == None else color_tree
+        image_area_tree = img.area.get_kdTree() if position_tree == None else position_tree 
+
+        center_idx = img.get_pixel_idx(coords)
+        center_point = colors[center_idx]
+
+        in_radius = hypervector_tree.query_ball_point(center_point, r= r, p=distance.value)
+        in_pad = image_area_tree.query_ball_point(coords, r = pad, p = DistanceMode.MINKOWSKI.value)
+        intersection = list(set(in_radius) & set(in_pad))
         
+        return len(intersection)
 
-def pixelDistanceStr(pixel1, pixel2):
-    x1 = pixel1[0]
-    y1 = pixel1[1]
-    value1 = pixel1[2]
-    x2 = pixel2[0]
-    y2 = pixel2[1]
-    value2 = pixel2[2]
-    man = abs(x2-x1) + abs(y2 -y2) + abs(value2-value1)
-    euc = math.sqrt((x2-x1)**2 + (y2-y1)**2 + (value2-value1)**2)
-    mink = max(abs(x2-x1), abs(y2 -y2), abs(value2-value1))
-    return f"man: {man:.2f} | euc: {euc:.2f} | mink: {mink:.2f}"
+    @staticmethod
+    def box_probability(
+            img: ImageFile,
+            r: int,
+            distance=DistanceMode.MINKOWSKI,
+            color_tree: KDTree = None,
+            position_tree: KDTree = None,
+            print_progress=True,
+            is_notebook_env=False):
 
-def pixelStr(pixel):
-    return f"({pixel[0]:=2.0f},{pixel[1]:=2.0f})[{pixel[2]:=3.0f}]"
+        pad = int(r/2)
+        box_count = (img.width - r + 1) * (img.height - r + 1)
+        occurrences = {}
+        center_pixels = Hypercube([pad, pad], [img.width-pad-pad, img.height-pad-pad])
+        
+        hypervector_tree = KDTree(img.pixels) if color_tree == None else color_tree
+        image_area_tree = img.area.get_kdTree() if position_tree == None else position_tree 
 
-class GlidingBoxN2:
+        pixel_iterator = GlidingBox.get_iterator(range(center_pixels.point_count), 
+                                                 print_progress,
+                                                 is_notebook_env, 
+                                                 position=0 if color_tree == None else 1, 
+                                                 leave=color_tree == None)
+        if print_progress:
+            pixel_iterator.set_description(f"r = {r:=2d}")
+
+        def count_weight(point):
+            weight = GlidingBox.box_weight(point, img, r, 
+                                           distance=distance, 
+                                           color_tree=hypervector_tree, 
+                                           position_tree=image_area_tree)
+            current_count = occurrences.get(weight)
+            occurrences[weight] = 1 if current_count == None else current_count + 1
+
+            if print_progress:
+                pixel_iterator.update(1)
+
+        center_pixels.loop(count_weight)
+        if print_progress:
+            pixel_iterator.close()
+
+        if box_count == 0: return {}
+
+        probs = {}
+        for weight in occurrences:
+            probs[weight] =  occurrences[weight] / box_count
+        return probs
+
+    @staticmethod
+    def probability_matrix(img_path: str,
+                           min_r: int = 3,
+                           max_r: int = 5,
+                           mode=ImageMode.RGB,
+                           distance=DistanceMode.MINKOWSKI,
+                           print_progress=True,
+                           is_notebook_env=False):
+        """Creates a probability matrix using the gliding box algorithm with chessboard distance.
+            Args:
+                path: path to the image being processed
+                min_r: minimum size of the gliding box. (default 3)
+                max_r: maximum size of the gliding box. (default 11)
+                image_mode: mode to process input image. Accepts PIL modes, such as "L" for B/W images or "RGB" for RGB images. (default "RGB") 
+        """
+
+        box_sizes = [r for r in range(min_r, max_r + 1, 2)]
+
+        box_size_iterator = GlidingBox.get_iterator(box_sizes, 
+                                                    print_progress, 
+                                                    is_notebook_env, 
+                                                    position=0)
+
+        if print_progress:
+            box_size_iterator.set_description(f"{img_path} | prob. matrix | opening file...")
+            box_size_iterator.update(0)
+        img = ImageFile(img_path, mode)
+
+        if print_progress:
+            box_size_iterator.set_description(f"{img_path} | prob. matrix | building k-d tree...")
+        color_tree = KDTree(img.pixels)
+        pixel_tree = img.area.get_kdTree()
+
+        probability_matrix = {}
+        if print_progress:
+            box_size_iterator.set_description(f"{img_path} | prob. matrix | {min_r} <= r <= {max_r}")
+
+        for box in box_size_iterator:
+            probability_matrix[box] = GlidingBox.box_probability(img, box,
+                                               distance= distance,
+                                               position_tree= pixel_tree,
+                                               color_tree= color_tree,
+                                               print_progress= print_progress,
+                                               is_notebook_env= is_notebook_env)
+
+        return probability_matrix
+
     def _pixel_distance(p1: list, p2: list):
         if (type(p1) != type(p2)):
             raise Exception(
@@ -55,7 +160,7 @@ class GlidingBoxN2:
         pixel: values for the reference pixel to check if is in the box
         r: size of the square box
         """
-        dist = GlidingBoxN2._pixel_distance(center, pixel)
+        dist = GlidingBox._pixel_distance(center, pixel)
         return dist <= r
 
     def _label_pixel_cluster(binary_map: list, cluster_map: list, x: int, y: int, label: int, connectivity: int):
@@ -77,32 +182,32 @@ class GlidingBoxN2:
             can_look_down = (x + 1) < height
 
             if (can_look_up):
-                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x -
+                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x -
                                                 1, y, label, connectivity)
             if (can_look_left):
-                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
+                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
                                                 y - 1, label, connectivity)
             if (can_look_right):
-                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
+                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
                                                 y + 1, label, connectivity)
             if (can_look_down):
-                GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x +
+                GlidingBox._label_pixel_cluster(binary_map, cluster_map, x +
                                                 1, y, label, connectivity)
 
             if (connectivity == 8):
                 if (can_look_left):
                     if (can_look_up):
-                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
                                                         x - 1, y - 1, label, connectivity)
                     if (can_look_down):
-                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
                                                         x + 1, y - 1, label, connectivity)
                 if (can_look_right):
                     if (can_look_up):
-                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
                                                         x - 1, y + 1, label, connectivity)
                     if (can_look_down):
-                        GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map,
+                        GlidingBox._label_pixel_cluster(binary_map, cluster_map,
                                                         x + 1, y + 1, label, connectivity)
 
     def _label_clusters(binary_map: list, connectivity: int):
@@ -123,7 +228,7 @@ class GlidingBoxN2:
                     continue
                 # else, if the pixel is marked but it's cluster is not mapped start marking it
                 elif (cluster_map[x][y] == 0):
-                    GlidingBoxN2._label_pixel_cluster(binary_map, cluster_map, x,
+                    GlidingBox._label_pixel_cluster(binary_map, cluster_map, x,
                                                     y, current_label, connectivity)
                     current_label += 1
 
@@ -134,7 +239,7 @@ class GlidingBoxN2:
             binary_map: MxN map with zeros and ones to find where the clusters of ones are
             connectivity: what kind of neighbor connectivity to check for clusters, should be 4 or 8
         """
-        cluster_map, cluster_count = GlidingBoxN2._label_clusters(binary_map,
+        cluster_map, cluster_count = GlidingBox._label_clusters(binary_map,
                                                                 connectivity)
         flat_map = cluster_map.flatten().tolist()
 
@@ -146,139 +251,54 @@ class GlidingBoxN2:
         return cluster_map, cluster_count, biggest_cluster_size
 
     @staticmethod
-    def get_iterator(iterator, print_progress, is_notebook, leave=bool | None, position=None, ):
-        if print_progress:
-            if is_notebook:
-                return tqdm_notebook(iterator, position=position, leave=leave)
-            else:
-                return tqdm(iterator, position=position, leave=leave)
-        return iterator
-
-    @staticmethod
-    def probability_matrix(img_path: str,
-                           min_r: int = 3,
-                           max_r: int = 11,
-                           image_mode = ImageMode.RGB,
-                           distance = DistanceMode.MINKOWSKI,
-                           print_progress=True,
-                           is_notebook_env=False):
-        """Creates a probability matrix using the gliding box algorithm with chessboard distance.
-            Args:
-                path: path to the image being processed
-                min_r: minimum size of the gliding box. (default 3)
-                max_r: maximum size of the gliding box. (default 11)
-                image_mode: mode to process input image. Accepts PIL modes, such as "L" for B/W images or "RGB" for RGB images. (default "RGB") 
-        """
-
-        box_sizes = [r for r in range(min_r, max_r + 1, 2)]
-
-        box_size_iterator = GlidingBoxN2.get_iterator(box_sizes, 
-                                                    print_progress, 
-                                                    is_notebook_env, 
-                                                    position=0)
-        
-        if print_progress:
-            box_size_iterator.set_description(f"{img_path} | opening file...")
-            box_size_iterator.update(0)
-        # opens file
-
-        # convert file data to image on given mode
-        img = ImageFile(img_path, image_mode)
-
-        # create empty occurence matrix
-        probability_matrix = {}
-
-
-        # iterate over box sizes
-        for r in box_size_iterator:
-            # count how many boxes fit in the image
-            box_count = (img.width - r + 1) * (img.height-r + 1)
-
-            # occurences
-            occurrences = {}
-
-            # get pad size from borders
-            pad = int(r / 2)
-            
-            # get central pixels
-            central_pixels = Hypercube([pad, pad], [(img.width - 2*pad),( img.height - 2*pad)])
-
-            pixel_iterator = GlidingBoxN2.get_iterator(range(central_pixels.point_count), print_progress, is_notebook_env, leave= False, position=1)
-            if print_progress: 
-                pixel_iterator.set_description(f"r = {r:=2d}")
-                pixel_iterator.update(0)
-                box_size_iterator.set_description(f"{img_path} | {min_r} <= r <= {max_r}")
-
-            def process_centers(coords):
-                x = coords[0]
-                y = coords[1]
-                central_pixel = img.get_pixel(coords)
-                contained = []
-                # iterate over the box
-
-                area = Hypercube([x-pad, y-pad], [r ,r])
-                def count_pixel(point):
-                    pixel = img.get_pixel(point)
-                    dist = Vector.distance(central_pixel, pixel, distance)
-                    if dist <= r:
-                        contained.append(pixel)
-                
-                area.loop(count_pixel)
-                weight = len(contained)
-                # increment occurence matrix
-                current_count = 0 if occurrences.get(weight) == None else occurrences[weight]
-                occurrences[weight] = current_count + 1
-
-                if print_progress: pixel_iterator.update(1)
-
-            central_pixels.loop(process_centers)
-
-            if print_progress: pixel_iterator.close()
-            probs = {}            
-            for weight in occurrences:
-                probs[weight] =  occurrences[weight] / box_count
-            probability_matrix[r] = probs
-
-        return probability_matrix
-
-    @staticmethod
-    def lacunarity(probability_matrix: list, min_r: int = 3, max_r: int = 11) -> float:
-        if (max_r < min_r):
-            raise Exception("Invalid values for min_r and max_r")
+    def lacunarity(probability_matrix: dict, min_r: int = 3, max_r: int = 11) -> float:
+        if (max_r < min_r): raise Exception("Invalid values for min_r and max_r")
         r_list = [r for r in range(min_r, max_r+1, 2)]
         lac = np.zeros(len(r_list), dtype=float)
-        idx = -1
-        for r in r_list:
-            idx = idx + 1
+        for idx in range(len(r_list)):
+            r = r_list[idx]
             max_mass = pow(r, 2)
             first_moment = 0
             second_moment = 0
+            r_probabilities = probability_matrix.get(r)
+            if r_probabilities == None: 
+                lac[idx] = float("inf")
+                continue
 
-            for m in range(max_mass):
-                first_moment = first_moment + \
-                    (m+1) * probability_matrix[idx][m]
-                second_moment = second_moment + \
-                    pow((m+1), 2) * probability_matrix[idx][m]
+            for mass_idx in range(max_mass):
+                mass = mass_idx + 1
+                prob = r_probabilities.get(mass)
+                if prob == None: continue
+
+                first_moment += mass * prob
+                second_moment += pow(mass, 2) * prob
+
             lac[idx] = (second_moment - pow(first_moment, 2)) / \
                 pow(first_moment, 2)
 
         return lac
 
     @staticmethod
-    def fractal_dimension(probability_matrix: list, min_r: int = 3, max_r: int = 11) -> float:
-        if (max_r < min_r):
-            raise Exception(
-                "Invalid values for min_r and max_R".format(min_r, max_r))
+    def fractal_dimension(probability_matrix: dict, min_r: int = 3, max_r: int = 11) -> float:
+        if (max_r < min_r): raise Exception("Invalid values for min_r and max_R".format(min_r, max_r))
+
         r_list = [r for r in range(min_r, max_r+1, 2)]
         fd = np.zeros(len(r_list), dtype=float)
         idx = -1
-        for r in r_list:
-            idx = idx + 1
+        for idx in range(len(r_list)):
+            r = r_list[idx]
             max_mass = pow(r, 2)
             d = 0
+            r_probabilities = probability_matrix.get(r)
+            if r_probabilities == None: 
+                fd[idx] = float("inf")
+                continue
 
-            for m in range(max_mass):
-                d = d + probability_matrix[idx][m] / (m+1)
+            for mass_idx in range(max_mass):
+                mass = mass_idx + 1
+                prob = r_probabilities.get(mass)
+                if prob == None: continue
+                d += prob/mass
             fd[idx] = d
 
         return fd
@@ -353,7 +373,7 @@ class GlidingBoxN2:
                         region_row = []
                         for j in range(y - pad, y + pad + 1):
                             pixel = img.getpixel((j, i))
-                            if (GlidingBoxN2._pixel_is_in_the_box(central_pixel, pixel, r)):
+                            if (GlidingBox._pixel_is_in_the_box(central_pixel, pixel, r)):
                                 # if pixel is in the box, tag it on the binary map
                                 region_row.append(1)
                                 # and count it a as percolated
@@ -364,7 +384,7 @@ class GlidingBoxN2:
                         region.append(region_row)
                     [_,
                      clusters_on_box,
-                     biggest_cluster_size] = GlidingBoxN2._region_cluster_data(region)
+                     biggest_cluster_size] = GlidingBox._region_cluster_data(region)
 
                     cluster_counts.append(clusters_on_box)
                     biggest_cluster_areas.append(
