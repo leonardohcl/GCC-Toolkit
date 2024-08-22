@@ -208,11 +208,7 @@ class Trainer():
         ConvNeuralNetwork.DENSENET_121: models.DenseNet121_Weights.IMAGENET1K_V1,
         ConvNeuralNetwork.EFFICIENTNET_B2: models.EfficientNet_B2_Weights.IMAGENET1K_V1
     }
-
-    @classmethod
-    def get_available_models(self) -> list[ConvNeuralNetwork]:
-        return [ConvNeuralNetwork.RESNET_50, ConvNeuralNetwork.DENSENET_121, ConvNeuralNetwork.EFFICIENTNET_B2]
-
+    
     def _copy_weights(model: nn.Module):
         """
             Get a copy of the weights from a neural network model
