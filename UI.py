@@ -1,36 +1,11 @@
 import tkinter as tk
 from tkinter import filedialog
 from Dataset import ImageDataset
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
 from Dataset import ImageDataset
 from MachineLearning import Trainer
+from Forms import TrainingForm, TrainingParametersForm, ImageDatasetForm
 
-
-KNOWN_MODELS = ["resnet50", "densenet121", "efficientnet_b2"]
-DEFAULT_TRAINING_PARAMS:dict[str, float|int]  = {
-    'learning_rate': 0.001,
-    'learning_rate_drop': 0.75,
-    'learning_rate_drop_frequency': 2,
-    'number_of_folds': 10,
-    'training_epochs': 10
-}
-
-PRETRAINED_MODEL_WEIGHTS = {
-    'resnet50': models.ResNet50_Weights.IMAGENET1K_V1,
-    'densenet121': models.DenseNet121_Weights.IMAGENET1K_V1,
-    'efficientnet_b2': models.EfficientNet_B2_Weights.IMAGENET1K_V1
-}
-
-LOAD_MODEL_FUNCTIONS = {
-    "resnet50": models.resnet50,
-    "densenet121": models.densenet121,
-    "efficientnet_b2": models.efficientnet_b2
-}
-
-
-class UI: 
+class UI:
     @classmethod
     def boot(self):
         print("\n\n-- GCC Toolkit v2.0 --")
@@ -115,105 +90,70 @@ class UI:
         return folder_path
         
     @classmethod 
-    def ask_training_parameters(self, skip_defaults:bool = False) -> dict[str, float | int]:
+    def ask_training_parameters_form(self, skip_defaults:bool = False) -> TrainingParametersForm:
+        form = TrainingParametersForm()
         if skip_defaults == False:
-            is_default_training_params = self.promp_yes_or_no(F"\nWould you like to use the default parameters for training?\ndefault_parameters:\n{DEFAULT_TRAINING_PARAMS}")
+            is_default_training_params = self.promp_yes_or_no(F"\nWould you like to use the default parameters for training?\ndefault_parameters:\n{form}")
             if is_default_training_params:
-                return DEFAULT_TRAINING_PARAMS.copy()
+                return form
         
-        training_parameters = {}
         print("\nPlease provide the parameters (if you want to keep the default please type nothing)")
-        for key in DEFAULT_TRAINING_PARAMS.keys():
-            training_parameters[key] = float(input(f"{key}({DEFAULT_TRAINING_PARAMS[key]}) = ") or DEFAULT_TRAINING_PARAMS[key])
+        for field in form.fields:
+            raw_value = input(f"{field}({form.__getattribute__(field)}) = ")
+            if raw_value != '':
+                value = int(raw_value) if isinstance(form.__getattribute__(field), int) else float(raw_value)
+                form.__setattr__(field, value)
 
-        is_correct = self.promp_yes_or_no(f"\nAre these values correct?\n{training_parameters}")
-        if is_correct: return training_parameters
-        return self.ask_training_parameters(True)
-        
+        is_correct = self.promp_yes_or_no(f"\nAre these values correct?\n{form}")
+        if is_correct: return form
+        return self.ask_training_parameters_form(True)
+    
     @classmethod
-    def cnn_training_routine(self):
-        model_idx = self.prompt_options("\nWhich model do you want to train?:", KNOWN_MODELS)
-        model_id = KNOWN_MODELS[model_idx]
-        is_transfer = self.promp_yes_or_no("\nWould you like to start with a trained model? (transfer learning)")
-        is_freeze = False
-        if is_transfer:
-            is_freeze = self.promp_yes_or_no("\nWould you like to train only the output of the model?")
-        csv_path = self.ask_dataset_csv_file()
-        folder_path = self.ask_image_directory_path()
-        training_parameters = self.ask_training_parameters()
+    def ask_dataset_form(self) -> ImageDatasetForm:
+        form = ImageDatasetForm()
+        form.csv_path = self.ask_dataset_csv_file()
+        form.folder_path = self.ask_image_directory_path()
+        return form
+
+    @classmethod
+    def ask_training_form(self) -> TrainingForm:
+        form = TrainingForm()
+        model_opts = Trainer.get_available_models()
+        model_idx = self.prompt_options("\nWhich model do you want to train?:", [opt.value for opt in model_opts])
+        form.model_id = model_opts[model_idx]
+        form.is_transfer = self.promp_yes_or_no("\nWould you like to start with a trained model? (transfer learning)")
+        if form.is_transfer:
+            form.is_freeze = self.promp_yes_or_no("\nWould you like to train only the output of the model?")
+        
+        
+        form.dataset = self.ask_dataset_form()
+        form.training_parameters = self.ask_training_parameters_form()
         
         print("\nPlease select where and with which name should I save the training model")
-        output_path = self.ask_save_path()
+        form.output_path = self.ask_save_path()
+        print(f"Model will be saved as {form.output_path}")
 
-        will_log = self.promp_yes_or_no("\nWould you like to save the log of the training?")
-        log_path = None
-        if will_log:
+        form.will_log = self.promp_yes_or_no("\nWould you like to save the log of the training?")
+        if form.will_log:
             print("\nPlease select where and with which name should I save the training log")
-            log_path = self.ask_save_path()
+            form.log_path = self.ask_save_path()
+            print(f"Log will be saved as {form.output_path}")
+        
+        return form
 
-
-        class_list = ImageDataset.get_csv_available_classes(csv_path)
-
-        # 1. Load model
-        model = LOAD_MODEL_FUNCTIONS[KNOWN_MODELS[model_idx]](weights=PRETRAINED_MODEL_WEIGHTS[model_id] if is_transfer else None)
-
-        # 2. Freeze the training for all layers
-        # Obs. This step only applies for transfer learning
-        if is_freeze:
-            for param in model.parameters():
-                param.requires_grad = False
-
-        # 3. Update output to match number of classes
-        Trainer.update_model_output_size(model, model_id, len(class_list))
-
-        # 4. Create transforms for the data
-        # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
-        # ImageNet dataset mean and standard deviations of each color channel. The pretraining was applied
-        # using this values, but hey can be changed to values that best suits your case.
-        transform_functions = [transforms.ToTensor()]
-        if is_transfer:
-            transform_functions.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
-
-        # 5. Create dataset. This type can be found in the file Dataset.py of this package
-        # and gets the path to a csv with the list of the images file names and the base path to the folder of the
-        # images. If you don't have the csv already, you can use the 'createFolderContentCsv' function
-        # from the file FileHandling.py.
-        dataset = ImageDataset(
-            csv_path,
-            folder_path,
-            class_list,
-            transform=transforms.Compose(transform_functions),
-        )
-
-        # 6. Call the training function
-        print("\nTraining...")
-        trained_model, learning_history = Trainer.k_fold_training(
-            model,
-            dataset,
-            k = int(training_parameters['number_of_folds']),
-            epochs = int(training_parameters['training_epochs']),
-            learning_rate = training_parameters['learning_rate'],
-            learning_rate_drop = training_parameters['learning_rate_drop'], 
-            learning_rate_drop_step_size=training_parameters['learning_rate_drop_frequency'], 
-            max_batch_size=5,
-            plot_acc=False,
-            plot_loss=False,
-            log_filename=log_path,
-            use_gpu=torch.cuda.is_available()
-        )
-
-        # 7. Save trained model (Optional)
-        torch.save(trained_model.state_dict(), output_path)
-
-        print(self.success_string(f"\nFinished training model {model_id}"))
+    @classmethod
+    def cnn_training_routine(self):
+        form = self.ask_training_form()
+        Trainer.process_form(form)
+        
+        print(self.success_string(f"\nFinished training model {form.model_id}"))
         print("Summary:")
-        print(f" - Transfer Leraning: {is_transfer}")	
-        if is_transfer: print(f" - Freeze Layers: {is_freeze}")	
-        for key in training_parameters:
-            print(f" - {key}: {training_parameters[key]}")
-        print(f"Image folder: {self.warning_string(folder_path)}")
-        print(f"Dataset CSV: {self.warning_string(csv_path)}")
-        print(f"Classes: {class_list}")
-        print((f"Model saved at: {self.info_string(output_path)}"))
-        if will_log: print(f"Log saved at: {self.info_string(log_path)}.log")
+        print(f" - Transfer Leraning: {form.is_transfer}")	
+        if form.is_transfer: print(f" - Freeze Layers: {form.is_freeze}")	
+        for field in form.training_parameters.fields:
+            print(f" - {field}: {form.training_parameters.__getattribute__(field)}")
+        print(f"Image folder: {self.warning_string(form.dataset.folder_path)}")
+        print(f"Dataset CSV: {self.warning_string(form.dataset.csv_path)}")
+        print((f"Model saved at: {self.info_string(form.output_path)}"))
+        if form.will_log: print(f"Log saved at: {self.info_string(form.log_path)}.log")
         self.main_menu()

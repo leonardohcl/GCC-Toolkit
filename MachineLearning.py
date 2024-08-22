@@ -11,7 +11,9 @@ import logging
 from Dataset import ImageDataset
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_notebook
-
+from torchvision import models, transforms
+from Keys import ConvNeuralNetwork
+from Forms import TrainingForm
 
 class ModelLearningSummary:
     def __init__(self, epochs: int) -> None:
@@ -195,6 +197,21 @@ class DataHandler():
 
 
 class Trainer():
+    _LOAD_MODEL_FUNCTIONS = {
+        ConvNeuralNetwork.RESNET_50: models.resnet50,
+        ConvNeuralNetwork.DENSENET_121: models.densenet121,
+        ConvNeuralNetwork.EFFICIENTNET_B2: models.efficientnet_b2
+    }
+
+    _PRETRAINED_MODEL_WEIGHTS = {
+        ConvNeuralNetwork.RESNET_50: models.ResNet50_Weights.IMAGENET1K_V1,
+        ConvNeuralNetwork.DENSENET_121: models.DenseNet121_Weights.IMAGENET1K_V1,
+        ConvNeuralNetwork.EFFICIENTNET_B2: models.EfficientNet_B2_Weights.IMAGENET1K_V1
+    }
+
+    @classmethod
+    def get_available_models(self) -> list[ConvNeuralNetwork]:
+        return [ConvNeuralNetwork.RESNET_50, ConvNeuralNetwork.DENSENET_121, ConvNeuralNetwork.EFFICIENTNET_B2]
 
     def _copy_weights(model: nn.Module):
         """
@@ -343,18 +360,23 @@ class Trainer():
         return model, accuracy/batch_count, loss/batch_count
 
     @staticmethod
-    def update_model_output_size(model:nn.Module, model_id: str, output_size: int):
-        if model_id == 'resnet50':
+    def _update_model_output_size(model:nn.Module, model_id: ConvNeuralNetwork, output_size: int):
+        if model_id == ConvNeuralNetwork.RESNET_50:
             num_feats = model.fc.in_features
             model.fc = nn.Linear(num_feats, output_size)
 
-        elif model_id == 'densenet121':
+        elif model_id ==  ConvNeuralNetwork.DENSENET_121:
             num_feats = model.classifier.in_features
             model.classifier = nn.Linear(num_feats, output_size)
 
-        elif model_id == 'efficientnet_b2':
+        elif model_id ==  ConvNeuralNetwork.EFFICIENTNET_B2:
             num_feats = model.classifier[1].in_features
             model.classifier[1] = nn.Linear(num_feats, output_size)
+
+    @staticmethod
+    def _freeze_parameters(model: nn.Module):
+        for param in model.parameters():
+            param.requires_grad = False
 
     @staticmethod
     def train(model: nn.Module,
@@ -691,3 +713,66 @@ class Trainer():
         model.load_state_dict(best_weights)
 
         return model, history
+
+    @classmethod
+    def _load_form_model(self, model: ConvNeuralNetwork, is_transfer:bool):
+        fn = self._LOAD_MODEL_FUNCTIONS[model]
+        if is_transfer:
+            return fn(weights=self._PRETRAINED_MODEL_WEIGHTS[model])
+        return fn()
+        
+
+    @staticmethod
+    def process_form(form: TrainingForm):
+
+        class_list = ImageDataset.get_csv_available_classes(form.dataset.csv_path)
+
+        # 1. Load model
+        model = Trainer._load_form_model(form.model_id, form.is_transfer)
+
+        # 2. Freeze the training for all layers
+        # Obs. This step only applies for transfer learning
+        if form.is_freeze: Trainer._freeze_parameters(model)
+
+
+        # 3. Update output to match number of classes
+        Trainer._update_model_output_size(model, form.model_id, len(class_list))
+
+        # 4. Create transforms for the data
+        # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
+        # ImageNet dataset mean and standard deviations of each color channel. The pretraining was applied
+        # using this values, but hey can be changed to values that best suits your case.
+        transform_functions = [transforms.ToTensor()]
+        if form.is_transfer:
+            transform_functions.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+
+        # 5. Create dataset. This type can be found in the file Dataset.py of this package
+        # and gets the path to a csv with the list of the images file names and the base path to the folder of the
+        # images. If you don't have the csv already, you can use the 'createFolderContentCsv' function
+        # from the file FileHandling.py.
+        dataset = ImageDataset(
+            form.dataset.csv_path,
+            form.dataset.folder_path,
+            class_list,
+            transform=transforms.Compose(transform_functions),
+        )
+
+        # 6. Call the training function
+        print("\nTraining...")
+        trained_model, learning_history = Trainer.k_fold_training(
+            model,
+            dataset,
+            k = form.training_parameters.number_of_folds,
+            epochs = form.training_parameters.training_epochs,
+            learning_rate = form.training_parameters.learning_rate,
+            learning_rate_drop = form.training_parameters.learning_rate_drop, 
+            learning_rate_drop_step_size= form.training_parameters.learning_rate_drop_frequency, 
+            max_batch_size=5,
+            plot_acc=False,
+            plot_loss=False,
+            log_filename=form.log_path,
+            use_gpu=torch.cuda.is_available()
+        )
+
+        # 7. Save trained model (Optional)
+        torch.save(trained_model.state_dict(), form.output_path)
