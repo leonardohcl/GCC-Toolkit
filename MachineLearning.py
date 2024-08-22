@@ -343,6 +343,20 @@ class Trainer():
         return model, accuracy/batch_count, loss/batch_count
 
     @staticmethod
+    def update_model_output_size(model:nn.Module, model_id: str, output_size: int):
+        if model_id == 'resnet50':
+            num_feats = model.fc.in_features
+            model.fc = nn.Linear(num_feats, output_size)
+
+        elif model_id == 'densenet121':
+            num_feats = model.classifier.in_features
+            model.classifier = nn.Linear(num_feats, output_size)
+
+        elif model_id == 'efficientnet_b2':
+            num_feats = model.classifier[1].in_features
+            model.classifier[1] = nn.Linear(num_feats, output_size)
+
+    @staticmethod
     def train(model: nn.Module,
               dataset: ImageDataset,
               train: list,

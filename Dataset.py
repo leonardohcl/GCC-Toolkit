@@ -43,25 +43,28 @@ class ImageDataset(Dataset):
             classes(list): List of classes in the dataset
             transform (callable, optional): Optional transform to be applied
                 on a sample.
-            loadToGpu (bool): If should load image data to GPU, in case of availability
 
         Notes:
             Classes are expected to be sequential numeric ints to make possible to emulate the output expected in form of an array.
-            Csv files with the listing ust not contain headers and each entry must be filename,class separated by a line break
+            Csv files with the image path and respective class must not contain headers and each entry must be 'filename, class'
+            with only one entry per line
         """
-        image_list = pd.read_csv(csv_file, header=None)
         self._classes = classes
         self._class_count = len(classes)
         self._transform = transform
         self._root_dir = root_dir
-        self.images = [ImageDatasetEntry(root_dir, row[0], row[1], self._transform)
-                       for _, row in image_list.iterrows()]
+        self._load_image_data(csv_file)
+     
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, ind: int):
         return self.images[ind]
+
+    def _load_image_data(self, csv_file_path: str):
+        image_list = pd.read_csv(csv_file_path, header=None)
+        self.images = [ImageDatasetEntry(self._root_dir, row[0], row[1], self._transform) for _, row in image_list.iterrows()]
 
     def get_expected_tensor(self, entry) -> torch.Tensor:
         """Get expected output from a network of image at given index.
@@ -76,3 +79,14 @@ class ImageDataset(Dataset):
         class_idx = self._classes.index(image.class_id)
         expected_vector[class_idx] = 1.0
         return torch.tensor(expected_vector, dtype=torch.float)
+
+    @classmethod
+    def get_csv_available_classes(self, csv_path:str):
+        image_list = pd.read_csv(csv_path, header=None)
+        class_list = []
+        for _, row in image_list.iterrows():
+            class_id = row[1]
+            if class_id in class_list: continue
+            class_list.append(class_id)
+
+        return class_list
