@@ -3,17 +3,20 @@ import torch.optim as optim
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import time
+import numpy as np
+import os
 from copy import deepcopy
 from random import sample
 from numpy import Infinity, zeros
 from math import floor
 import logging
 from Dataset import ImageDataset
+from File import Arff
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_notebook
 from torchvision import models, transforms
 from Keys import ConvNeuralNetwork
-from Forms import TrainingForm
+from Forms import TrainingForm, LayerWeightsExtractionForm
 
 class ModelLearningSummary:
     def __init__(self, epochs: int) -> None:
@@ -197,18 +200,6 @@ class DataHandler():
 
 
 class Trainer():
-    _LOAD_MODEL_FUNCTIONS = {
-        ConvNeuralNetwork.RESNET_50: models.resnet50,
-        ConvNeuralNetwork.DENSENET_121: models.densenet121,
-        ConvNeuralNetwork.EFFICIENTNET_B2: models.efficientnet_b2
-    }
-
-    _PRETRAINED_MODEL_WEIGHTS = {
-        ConvNeuralNetwork.RESNET_50: models.ResNet50_Weights.IMAGENET1K_V1,
-        ConvNeuralNetwork.DENSENET_121: models.DenseNet121_Weights.IMAGENET1K_V1,
-        ConvNeuralNetwork.EFFICIENTNET_B2: models.EfficientNet_B2_Weights.IMAGENET1K_V1
-    }
-    
     def _copy_weights(model: nn.Module):
         """
             Get a copy of the weights from a neural network model
@@ -354,25 +345,6 @@ class Trainer():
                 torch.cuda.empty_cache()
 
         return model, accuracy/batch_count, loss/batch_count
-
-    @staticmethod
-    def _update_model_output_size(model:nn.Module, model_id: ConvNeuralNetwork, output_size: int):
-        if model_id == ConvNeuralNetwork.RESNET_50:
-            num_feats = model.fc.in_features
-            model.fc = nn.Linear(num_feats, output_size)
-
-        elif model_id ==  ConvNeuralNetwork.DENSENET_121:
-            num_feats = model.classifier.in_features
-            model.classifier = nn.Linear(num_feats, output_size)
-
-        elif model_id ==  ConvNeuralNetwork.EFFICIENTNET_B2:
-            num_feats = model.classifier[1].in_features
-            model.classifier[1] = nn.Linear(num_feats, output_size)
-
-    @staticmethod
-    def _freeze_parameters(model: nn.Module):
-        for param in model.parameters():
-            param.requires_grad = False
 
     @staticmethod
     def train(model: nn.Module,
@@ -709,6 +681,19 @@ class Trainer():
         model.load_state_dict(best_weights)
 
         return model, history
+            
+class Helper():
+    _LOAD_MODEL_FUNCTIONS = {
+        ConvNeuralNetwork.RESNET_50: models.resnet50,
+        ConvNeuralNetwork.DENSENET_121: models.densenet121,
+        ConvNeuralNetwork.EFFICIENTNET_B2: models.efficientnet_b2
+    }
+
+    _PRETRAINED_MODEL_WEIGHTS = {
+        ConvNeuralNetwork.RESNET_50: models.ResNet50_Weights.IMAGENET1K_V1,
+        ConvNeuralNetwork.DENSENET_121: models.DenseNet121_Weights.IMAGENET1K_V1,
+        ConvNeuralNetwork.EFFICIENTNET_B2: models.EfficientNet_B2_Weights.IMAGENET1K_V1
+    }
 
     @classmethod
     def _load_form_model(self, model: ConvNeuralNetwork, is_transfer:bool):
@@ -716,31 +701,99 @@ class Trainer():
         if is_transfer:
             return fn(weights=self._PRETRAINED_MODEL_WEIGHTS[model])
         return fn()
-        
 
     @staticmethod
-    def process_form(form: TrainingForm):
+    def _update_model_output_size(model:nn.Module, model_id: ConvNeuralNetwork, output_size: int):
+        if model_id == ConvNeuralNetwork.RESNET_50:
+            num_feats = model.fc.in_features
+            model.fc = nn.Linear(num_feats, output_size)
 
+        elif model_id ==  ConvNeuralNetwork.DENSENET_121:
+            num_feats = model.classifier.in_features
+            model.classifier = nn.Linear(num_feats, output_size)
+
+        elif model_id ==  ConvNeuralNetwork.EFFICIENTNET_B2:
+            num_feats = model.classifier[1].in_features
+            model.classifier[1] = nn.Linear(num_feats, output_size)
+
+    @staticmethod
+    def _get_model_last_layer_size(model:nn.Module, model_id: ConvNeuralNetwork) -> int:
+        if model_id == ConvNeuralNetwork.RESNET_50 or model_id == ConvNeuralNetwork.INCEPTION_V3:
+            return model.fc.in_features  # 2048
+
+        elif model_id ==  ConvNeuralNetwork.DENSENET_121:
+            return model.classifier.in_features # 1024
+
+        elif model_id ==  ConvNeuralNetwork.EFFICIENTNET_B2:
+            return model.classifier[1].in_features # 1408
+        
+        elif model_id == ConvNeuralNetwork.VGG19:
+            return model.classifier[6].in_features # 4096
+       
+    @staticmethod
+    def _freeze_parameters(model: nn.Module):
+        for param in model.parameters():
+            param.requires_grad = False
+
+    @staticmethod
+    def _get_transform_functions(add_normalize:bool = False):
+        functions = [transforms.ToTensor()]
+        if add_normalize:
+            functions.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+        return transforms.Compose(functions)
+
+    @staticmethod
+    def _register_output_layer_hook(model:nn.Module, model_id: ConvNeuralNetwork, holder_dict: dict):
+        # Define function to send input/output to holder with a specific name
+        def get_input(name):
+            def hook(_model, input, _output):
+                aux_array = input[0].cpu().detach().numpy()
+                aux_array = aux_array.flatten()
+                holder_dict[name] = aux_array.tolist()
+
+            return hook
+
+        def get_output(name):
+            def hook(_model, _input, output):
+                aux_array = output.cpu().detach().numpy()
+                aux_array = aux_array.flatten()
+                holder_dict[name] = aux_array.tolist()
+
+            return hook
+
+        if (model_id == ConvNeuralNetwork.RESNET_50 
+            or model_id == ConvNeuralNetwork.INCEPTION_V3
+            or model_id == ConvNeuralNetwork.EFFICIENTNET_B2):
+            model.avgpool.register_forward_hook(get_output(model_id))
+
+
+        elif model_id ==  ConvNeuralNetwork.DENSENET_121:
+            model.classifier.register_forward_hook(get_input(model_id))
+
+        
+        elif model_id == ConvNeuralNetwork.VGG19:
+            model.classifier[5].register_forward_hook(get_output(model_id))
+
+    @staticmethod
+    def train_cnn(form: TrainingForm):
         class_list = ImageDataset.get_csv_available_classes(form.dataset.csv_path)
 
         # 1. Load model
-        model = Trainer._load_form_model(form.model_id, form.is_transfer)
+        model = Helper._load_form_model(form.model_id, form.is_transfer)
 
         # 2. Freeze the training for all layers
         # Obs. This step only applies for transfer learning
-        if form.is_freeze: Trainer._freeze_parameters(model)
+        if form.is_freeze: Helper._freeze_parameters(model)
 
 
         # 3. Update output to match number of classes
-        Trainer._update_model_output_size(model, form.model_id, len(class_list))
+        Helper._update_model_output_size(model, form.model_id, len(class_list))
 
         # 4. Create transforms for the data
         # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
         # ImageNet dataset mean and standard deviations of each color channel. The pretraining was applied
         # using this values, but hey can be changed to values that best suits your case.
-        transform_functions = [transforms.ToTensor()]
-        if form.is_transfer:
-            transform_functions.append(transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+        transform_functions = Helper._get_transform_functions(add_normalize=form.is_transfer)
 
         # 5. Create dataset. This type can be found in the file Dataset.py of this package
         # and gets the path to a csv with the list of the images file names and the base path to the folder of the
@@ -750,7 +803,7 @@ class Trainer():
             form.dataset.csv_path,
             form.dataset.folder_path,
             class_list,
-            transform=transforms.Compose(transform_functions),
+            transform=transform_functions,
         )
 
         # 6. Call the training function
@@ -772,3 +825,80 @@ class Trainer():
 
         # 7. Save trained model (Optional)
         torch.save(trained_model.state_dict(), form.output_path)
+
+    @staticmethod
+    def extract_output_layer_values(form:LayerWeightsExtractionForm):
+        # 1. Create dictionary to hold outputs
+        data_holder = {}
+
+        # 2. Load database
+        # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
+        # ImageNet dataset mean and standard deviations of each color channel. The pretraining was applied
+        # using this values, but hey can be changed to values that best suits your case.
+        transform_functions = Helper._get_transform_functions(add_normalize=False)
+        class_list = ImageDataset.get_csv_available_classes(form.dataset.csv_path)
+        dataset = ImageDataset(form.dataset.csv_path,
+                            form.dataset.folder_path,
+                            class_list,
+                            transform=transform_functions)
+
+        img_count = len(dataset)  # get image count
+
+        # 3. Load CNN
+        model = Helper._load_form_model(form.model_id, form.is_transfer)
+
+        if form.model_path:
+            model.load_state_dict(torch.load(form.model_path))
+        model.eval()  # set it to evaluation mode
+
+        # 3.1. If GPU is available, send cnn to it
+        use_gpu = torch.cuda.is_available()
+        if use_gpu:
+            model.cuda()
+
+        # 3.2 Get layer output size 
+        output_size = Helper._get_model_last_layer_size(model, form.model_id)
+
+        # 4. Register hook to desired layer to hold it's output
+        Helper._register_output_layer_hook(model, form.model_id, data_holder)
+
+        # 5. Process each image and get the desired layers output
+        # create placeholder output list
+        output = np.zeros((img_count, output_size + 1)).tolist()
+        progress = tqdm(range(img_count))
+        for idx in progress:
+            progress.set_description(dataset[idx].filename)
+
+            # create fake batch with single input
+            img = dataset[idx].get_tensor().unsqueeze(0)
+            # if cuda is available send input to it
+            if use_gpu:
+                img = img.cuda()
+
+            # give input to cnn
+            out = model(img)
+
+            if use_gpu:
+                torch.cuda.empty_cache()
+
+            # get all the data collected in the holder
+            img_output = data_holder[form.model_id]
+            # append image class to the end of the output
+            img_output.append(dataset[idx].class_id)
+
+            # store output
+            output[idx] = img_output
+
+        # 6. Create the names for the extracted variables
+        names = [f"{form.model_id.value}_output_value_{i}" for i in range(1, output_size + 1)]
+
+        # 7. Write arff file
+        data = Arff(relation=F"{form.model_id.value}-output",
+                    entries=output,
+                    classes=class_list,
+                    attrs=names, 
+                    attr_types=['numeric' for _ in names]
+                )
+        
+        path, filename = os.path.split(form.output_path)
+        data.save(filename, path)

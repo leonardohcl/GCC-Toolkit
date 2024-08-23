@@ -79,9 +79,9 @@ class ImageDataset(Dataset):
         class_idx = self._classes.index(image.class_id)
         expected_vector[class_idx] = 1.0
         return torch.tensor(expected_vector, dtype=torch.float)
-
+    
     @classmethod
-    def get_csv_available_classes(self, csv_path:str):
+    def get_csv_available_classes(self, csv_path:str) -> list:
         image_list = pd.read_csv(csv_path, header=None)
         class_list = []
         for _, row in image_list.iterrows():

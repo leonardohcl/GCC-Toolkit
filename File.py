@@ -123,7 +123,7 @@ class Arff:
                 f"Mismatching size of attribute name list and received content. Found {attr_count} but expected {len(self.attrs)}")
 
         f = open(output_path, "x")
-        f.write("@RELATION '" + file_name + ".arff'\n\n")
+        f.write(f"@RELATION '{self.relation or file_name}'\n\n")
 
         for name in self.attrs:
             f.write("@ATTRIBUTE " + name + " numeric\n")

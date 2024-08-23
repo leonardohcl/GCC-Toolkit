@@ -52,6 +52,11 @@ class DataForm:
     def query_values(self):
         pass
 
+class CnnDataForm(DataForm):
+    @property
+    def available_models(self):
+        return [ConvNeuralNetwork.RESNET_50, ConvNeuralNetwork.DENSENET_121, ConvNeuralNetwork.EFFICIENTNET_B2]
+
 class TrainingParametersForm(DataForm):
     def __init__(self) -> None:
         self.learning_rate: float =  0.001
@@ -93,12 +98,8 @@ class ImageDatasetForm(DataForm):
         classes = ImageDataset.get_csv_available_classes(path)
         print("Found the following classes in the image list:")
         for name in classes:
-            print(f" - {name}")
-        is_correct = self.promp_yes_or_no("\nIs this the right file?")
-        if is_correct: 
-            self.csv_path = path
-            return
-        self._ask_dataset_csv_file()
+            print(f" - {name}")       
+        self.csv_path = path
 
     def _ask_image_directory_path(self):
         print("\nPlease select the folder with the dataset images.")
@@ -110,7 +111,7 @@ class ImageDatasetForm(DataForm):
         self._ask_dataset_csv_file()
         self._ask_image_directory_path()
 
-class TrainingForm(DataForm):
+class TrainingForm(CnnDataForm):
     model_id: ConvNeuralNetwork
 
     def __init__(self) -> None:
@@ -131,10 +132,6 @@ class TrainingForm(DataForm):
         txt += ((f"Model saved at: {ColorText.info(self.output_path)}"))
         if self.will_log: txt += (f"Log saved at: {ColorText.info(self.log_path)}.log")
         return txt
-
-    @property
-    def available_models(self):
-        return [ConvNeuralNetwork.RESNET_50, ConvNeuralNetwork.DENSENET_121, ConvNeuralNetwork.EFFICIENTNET_B2]
 
     def query_values(self):
         model_idx = self.prompt_options("\nWhich model do you want to train?:", self.available_models)
@@ -157,3 +154,39 @@ class TrainingForm(DataForm):
             self.log_path = self.ask_save_path()
             print(f"Log will be saved as {self.output_path}")
         
+class LayerWeightsExtractionForm(CnnDataForm):
+    model_id: ConvNeuralNetwork
+
+    def __init__(self) -> None:
+        self.output_path: str = ''
+        self.is_pre_trained = False
+        self.is_transfer = False
+        self.model_path = ''
+        self.dataset = ImageDatasetForm()
+
+    def __str__(self) -> str:
+        txt = ''
+        txt += (f"Pre-trained model: {ColorText.info(self.model_path if self.model_path else 'ImageNet' ) if self.is_pre_trained else 'no'}\n")	
+        txt += f"{self.dataset}\n"
+        txt += ((f"Output file: {ColorText.info(f"{self.output_path}.arff")}"))
+        return txt
+
+    def query_values(self):
+        model_idx = self.prompt_options("\nWhich model do you want to train?:", self.available_models)
+        self.model_id = self.available_models[model_idx]
+        self.is_pre_trained = self.promp_yes_or_no("\nWould you like to use a trained model?")
+        if self.is_pre_trained:
+            self.is_transfer = self.promp_yes_or_no("\nDo you want to load the imagenet pretained model?")
+
+            if self.is_transfer == False:
+                print("\nPlease select the file contained your training model")
+                self.model_path = self.ask_file_path()
+                print(f"Selected: {self.model_path}")
+        
+        
+        self.dataset.query_values()
+        
+        print("\nPlease select where and with which name should I save the resulting arff file")
+        self.output_path = self.ask_save_path()
+        print(f"File will be saved as {self.output_path}.arff")
+     
