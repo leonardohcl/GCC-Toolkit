@@ -311,25 +311,40 @@ class Folder:
             os.mkdir(file_tree)
         self._exists = True
 
-    def get_files(self, extension: str = None):
+    def get_child_path(self, child_relative_path: str):
+        return os.path.join(self._path, child_relative_path)
+
+    def is_child_file(self, child_relative_path: str):
+        return os.path.isfile(self.get_child_path(child_relative_path))
+
+    def get_contents(self, include_nested: bool = False):
+        return os.listdir(self._path)
+        
+    def get_folders(self):
         self.check_existence()
-        content_list = os.listdir(self._path)
+        children = self.get_contents()
+        return list(filter(lambda child_path: self.is_child_file(child_path) == False, children))
+
+    def get_files(self, include_nested:bool = False):
+        self.check_existence()
+        content_list = self.get_contents()
+
+        if include_nested == False:
+            return list(filter(lambda child_path: self.is_child_file(child_path), content_list))
+        
         file_list = []
+        for child in content_list:
+            if self.is_child_file(child): 
+                file_list.append(child)
+                continue
 
-        for content in content_list:
-            if os.path.isfile(os.path.join(self._path, content)):
-                file_list.append(content)
+            nested_folder = Folder(self.get_child_path(child))
+            file_list += [f"{os.path.join(child, nested)}" for nested in nested_folder.get_files(include_nested)]
 
-        if extension:
-            temp_list = []
-            for f in file_list:
-                if f.endswith(extension):
-                    temp_list.append(f)
-            file_list = temp_list
-        
         return file_list
+
         
-    def get_files_csv(self, csv_name: str, extension: str = None):
+    def get_files_csv(self, csv_name: str):
         """Create a csv file with the contents of a folder
             Args:
                 csv_name(string): output csv file name, without extension
@@ -341,12 +356,12 @@ class Folder:
                 f"There's already a csv file with given name. name: {csv_name}")
             return
 
-        file_list = self.get_files(extension)
+        file_list = self.get_files()
         df = DataFrame(file_list)
         df.to_csv(output_file_path, header=False, index=False)
 
-    def group_files(self, folder_suffix: str, group_size: int = 10, extension: str = None):
-        files = self.get_files(extension)
+    def group_files(self, folder_suffix: str, group_size: int = 10):
+        files = self.get_files()
         folder_count = ceil(len(files) / group_size)
         folder_names = [f"{folder_suffix}-{i}" for i in range(folder_count)]
         folders = [Folder(os.path.join(self.path, name)) for name in folder_names]
@@ -361,3 +376,17 @@ class Folder:
             files = files[group_size:]
             for file in folder_files:
                 os.rename(os.path.join(self.absolute_path, file), os.path.join(folder.absolute_path, file))
+
+    def map_as_dataset(self):
+        classes = self.get_folders()
+        dataset_map = []
+        for classname in classes:
+            class_folder = Folder(os.path.join(self._path, classname))
+            class_files = class_folder.get_files(True)
+            for file in class_files:
+                dataset_map.append((os.path.join(classname, file), classname))
+        return dataset_map
+    
+    def generate_dataset_csv(self, output_path):
+        df = DataFrame(self.map_as_dataset())
+        df.to_csv(output_path, header=False, index=False)

@@ -8,7 +8,7 @@ This repository holds python scripts that allow the extraction of different feat
 
 This files holds some of the general functions used all over the scripts, they are:
 
-  - [Fractal](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/Fractal.py): Functions to process images and obtain its fractal features like Lacunarity and Fractal Dimension.
+- [Fractal](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/Fractal.py): Functions to process images and obtain its fractal features like Lacunarity and Fractal Dimension.
 
 - [GoLangJson](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/GoLangJson.py): Holds the class GoLangProbabiblityMatrix used to manage the date from a probability matrix obtained with the auxiliary GoLang gliding box script.
 
@@ -18,37 +18,35 @@ This files holds some of the general functions used all over the scripts, they a
 
 -  [Dataset.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/Dataset.py): Holds the ImageDataset class that handles opening files, transforming them, associating image with class and other operations used with Convolutional Neural Networks (CNNs);
 
-  
 
 -  [MachineLearning.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/MachineLearning.py): Classes for machine learning algorithms like training routines;
 
-  
 
 -  [CAMHelpers.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/CAMHelpers.py): Functions that help generate images from extracted Class Activation Maps (CAMs).
 
 
 ## Fractal Features
-Fractal geometry was defined to measure complex shapes and some values of it can be useful to describe an image content. At [fractal_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/fractal_extraction_example.py) there's a simple example on how to obtain Lacunarity and Fractal Dimension, both fractal features, for an image or set of images. The technique applied uses the gliding box algorithm with chessboard distance. 
+Fractal geometry was defined to measure complex shapes and some values of it can be useful to describe an image content. At [fractal_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/fractal_extraction_example.py) there's a simple example on how to obtain Lacunarity and Fractal Dimension, both fractal features, for an image or set of images. The technique applied uses the gliding box algorithm with chessboard distance. 
 
 
  ### Performance issues
  Although the provided script works just fine, the gliding box algorithm has a very high computional cost as its behavior aproaches O(n⁵). Given that it can take some time to process an image, especially with high values for R. To avoid days and days of processing a friend kindly re-wrote the algorithm with GoLang to achieve a better performance. The script for it can be found [here](https://github.com/ThiagoLeal11/glidingBox).
- The GoLang gliding box script outputs the probability matrix or percolatio ndata in a JSON file, and at [go_lang_probability_matrix_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_probability_matrix_json_processing_example.py) and [go_lang_percolation_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/go_lang_percolation_json_processing_example.py) there are examples of how to get Lacunarity, Fractal Dimension and Percolation arffs out of the script's output.
+ The GoLang gliding box script outputs the probability matrix or percolatio ndata in a JSON file, and at [go_lang_probability_matrix_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/go_lang_probability_matrix_json_processing_example.py) and [go_lang_percolation_json_processing_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/go_lang_percolation_json_processing_example.py) there are examples of how to get Lacunarity, Fractal Dimension and Percolation arffs out of the script's output.
 
 ## CNN Training
-To extract deep features from a CNN, either with ou without any transfer learning, it may be necessary to apply some training to the network. At [training_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/training_example.py) you'll find a guide to apply this training to a network using the tools provided here and from external packages.
+To extract deep features from a CNN, either with ou without any transfer learning, it may be necessary to apply some training to the network. At [training_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/training_example.py) you'll find a guide to apply this training to a network using the tools provided here and from external packages.
 
 ## Deep Features Extraction
 
-The values from a CNN internal layer can hold relevant information describing the patterns on an Image. When these values are used as features, they're known as deep features. At [layer_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/layer_extraction_example.py) there's a quick script showing how to obtain those and save it as a '.arff' file.
+The values from a CNN internal layer can hold relevant information describing the patterns on an Image. When these values are used as features, they're known as deep features. At [layer_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/layer_extraction_example.py) there's a quick script showing how to obtain those and save it as a '.arff' file.
 
 ## LIME Extraction
 
-Lime is short for Local Interpretable Model-Agnostic Explanations. This means that a LIME can gather the information about which areas (or superpixels) of the image have contributed to a given output.  By following [lime_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/lime_extraction_example.py) you can check the steps to get this kind of image using the scripts on the repository.
+Lime is short for Local Interpretable Model-Agnostic Explanations. This means that a LIME can gather the information about which areas (or superpixels) of the image have contributed to a given output.  By following [lime_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/lime_extraction_example.py) you can check the steps to get this kind of image using the scripts on the repository.
 
 ## CAM Extraction
 
-A Class Activation Map shows which areas of an image contribute more to the final result. This information can be used in many forms, and can be obtained following the script at [cam_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/cam_extraction_example.py). The script shows how to acquire these CAMs in four different ways: a grayscale map, a colormap, a colormap overlaying the original image and multiply overlay of the grayscale map on the original image. Here are some examples of the resulting images obtained from a VGG16 CNN pre-trained on the Imagenet dataset:
+A Class Activation Map shows which areas of an image contribute more to the final result. This information can be used in many forms, and can be obtained following the script at [cam_extraction_example.py](https://github.com/leonardohcl/Image-Feature-Extraction-Tools/blob/main/examples/cam_extraction_example.py). The script shows how to acquire these CAMs in four different ways: a grayscale map, a colormap, a colormap overlaying the original image and multiply overlay of the grayscale map on the original image. Here are some examples of the resulting images obtained from a VGG16 CNN pre-trained on the Imagenet dataset:
 
   
 

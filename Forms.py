@@ -130,7 +130,7 @@ class TrainingForm(CnnDataForm):
         txt += f"{self.training_parameters}"
         txt += f"{self.dataset}\n"
         txt += ((f"Model saved at: {ColorText.info(self.output_path)}"))
-        if self.will_log: txt += (f"Log saved at: {ColorText.info(self.log_path)}.log")
+        if self.will_log: txt += (f"Log saved at: {ColorText.info(self.log_path + '.log')}")
         return txt
 
     def query_values(self):
@@ -168,7 +168,7 @@ class LayerWeightsExtractionForm(CnnDataForm):
         txt = ''
         txt += (f"Pre-trained model: {ColorText.info(self.model_path if self.model_path else 'ImageNet' ) if self.is_pre_trained else 'no'}\n")	
         txt += f"{self.dataset}\n"
-        txt += ((f"Output file: {ColorText.info(f"{self.output_path}.arff")}"))
+        txt += f"Output file: {ColorText.info(self.output_path + '.arff')}"
         return txt
 
     def query_values(self):
@@ -189,4 +189,23 @@ class LayerWeightsExtractionForm(CnnDataForm):
         print("\nPlease select where and with which name should I save the resulting arff file")
         self.output_path = self.ask_save_path()
         print(f"File will be saved as {self.output_path}.arff")
-     
+
+class DatasetFolderMapForm(DataForm):
+    def __init__(self) -> None:
+        self.folder_path = ''
+        self.output_path = ''
+
+    def query_values(self):
+        print(ColorText.success("\nThis will create a csv file to be used as input for other methods available here.\n"))
+        print(ColorText.warning("How to prepare the dataset folder:\n"))
+        print(f" - Group images/files of same class in folders e.g.\n\n   {ColorText.info('folder/class1')}\n   {ColorText.info('folder/class2')}\n")
+        print(f" - Nested folders will be ignored for class specification, they will be mapped as the same class as the parent on root level.e.g. {ColorText.info('folder/class1/nested/file.jpg')} will be mapped as class1.\n")
+        print(f" - Files in root level will be ignored. e.g. {ColorText.info('folder/file.jpg')} won't be mapped!\n")
+
+        print("Please select the folder:")
+        self.folder_path = self.ask_dir_path()
+        print(f"Selected: {ColorText.info(self.folder_path)}")
+
+        print("\nPlease select where and with which name should I save the csv file")
+        self.output_path = self.ask_save_path()
+        print(f"Selected: {ColorText.info(self.output_path)}")
