@@ -2,7 +2,8 @@
 
 This repository holds python scripts that allow the extraction of different features form images using a variety of techniques. Additionaly there's also a small library to make easier some of the steps of the proccess.
 
-  
+If you want to use the recently developed assistent UI just run the command ``python ./main.py``
+
 
 ## Extended Library
 
@@ -122,3 +123,8 @@ These scripts use some external packages that are listed below with the versions
 
 
 [lime](https://github.com/marcotcr/lime) v0.2.0.1
+
+
+# Published papers
+
+[Classification of Multiple H&E Images via an Ensemble Computational Scheme](http://dx.doi.org/10.3390/e26010034)
