@@ -10,7 +10,7 @@ from scipy.spatial import KDTree
 
 class GlidingBox:
     @staticmethod
-    def get_iterator(iterator, print_progress, is_notebook, leave=bool | None, position=None, ):
+    def get_iterator(iterator, print_progress, is_notebook, leave= None, position=None, ):
         if print_progress:
             if is_notebook:
                 return tqdm_notebook(iterator, position=position, leave=leave)

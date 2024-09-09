@@ -32,7 +32,7 @@ class ImageFile:
         return self.pixels[idx]
 
     @staticmethod
-    def pixel_to_vector(point: tuple, color: tuple | int):
+    def pixel_to_vector(point: tuple, color: tuple):
         try:
             return ([point[0], point[1]] + list(color))
         except:
