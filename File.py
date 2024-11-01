@@ -47,7 +47,7 @@ class ImageFile:
             print("Couldn't read file. Error: {0}".format(err))
 
     @staticmethod
-    def save(image: Image, folder: str, filename: str, extension: str = "png"):
+    def save(image: Image, folder: str, filename: str, extension: str = "jpg"):
         """ Save a PIL Image to target folder with given name and extension
         Args:
             image(Image): Image to be saved
@@ -57,7 +57,8 @@ class ImageFile:
         """
 
         path = os.path.join(folder, filename + "." + extension)
-        image.save(path)
+        Folder(folder).create()
+        image.convert('RGB').save(path)
 
 class Arff:
     """Structure that holds an arff file

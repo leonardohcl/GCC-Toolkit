@@ -12,13 +12,12 @@ from tqdm import tqdm
 IMAGE_CSV_PATH = "sample/sample-images.csv"
 IMAGE_FOLDER_PATH = "sample/images"
 CLASSES = [0, 1]
-USE_CUDA = True
 
 # Output details
 OUTPUT_FOLDER = "sample-CAM"
-SAVE_BW_CAM = True
-SAVE_BW_OVERLAY_CAM = True
-SAVE_JET_COLORMAP_CAM = True
+SAVE_BW_CAM = False
+SAVE_BW_OVERLAY_CAM = False
+SAVE_JET_COLORMAP_CAM = False
 SAVE_JET_COLORMAP_OVERLAY_CAM = True
 
 # Output details for more than one type of output
@@ -65,8 +64,7 @@ target_layer = model.features[-1]
 
 # 1.2. Create CAM generator
 cam_generator = GradCAM(model=model,
-                        target_layers=[target_layer],
-                        use_cuda=USE_CUDA and torch.cuda.is_available())
+                        target_layers=[target_layer])
 
 # 2. Define the dataset
 # Obs. Normalization is encouraged if using a pretrained model, the values correspond to the
